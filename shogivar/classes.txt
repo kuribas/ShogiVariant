@@ -1,0 +1,25 @@
+Gtk::ChessBoard
+Shogi::Position
+Shogi::Position::Move
+
+ChessBoard
+
+Theme
+
+ShogiBoard
+SmallShogiBoard
+
+Player interface:
+- on_board?
+- set_board
+- do_request
+- do_move
+Observers:
+- notify_move
+- notify_request
+
+
+Creating game:
+--------------
+Create players
+Create board

@@ -1,0 +1,1228 @@
+; *** Cannon Shogi
+; *** A game by Peter Michaelsen (c)1998
+; *** ZRF implementation by Steve Evans - 27/5/'99 
+; *** Based on the Shogi ZRF code by Zillions Development  
+
+(define am-white? (not-in-zone? promotion-zone 1i))
+(define am-black? (in-zone? promotion-zone 1i))
+
+(define first-empty
+   to-prison
+   (while not-empty? next-prison)
+)
+(define convert-prisoner
+	change-owner
+	(if (flag? bSilver) (change-type Silver))
+	(if (flag? bPawn)   (change-type Pawn))
+	(if (flag? bBishop) (change-type Bishop))
+	(if (flag? bRook)   (change-type Rook))
+	(if (flag? bLance)  (change-type Lance))
+	(if (flag? bKnight) (change-type Knight))
+	(if (flag? bGCannon)(change-type Gold-Cannon))
+	(if (flag? bSCannon)(change-type Silver-Cannon))
+	(if (flag? bCCannon)(change-type Copper-Cannon))
+	(if (flag? bICannon)(change-type Iron-Cannon))
+)
+(define prisoner-check
+   (if enemy?
+   	      (set-flag bSilver  (piece? Promoted-Silver))
+		(set-flag bPawn    (piece? Tokin))
+		(set-flag bBishop  (piece? Promoted-Bishop))
+		(set-flag bRook    (piece? Promoted-Rook))
+		(set-flag bKnight  (piece? Promoted-Knight))
+		(set-flag bLance   (piece? Promoted-Lance))
+		(set-flag bGCannon (piece? Flying-Gold-Cannon))
+		(set-flag bSCannon (piece? Flying-Silver-Cannon))
+		(set-flag bCCannon (piece? Flying-Copper-Cannon))
+		(set-flag bICannon (piece? Flying-Iron-Cannon))
+        cascade
+		mark	
+			(first-empty)
+			to
+			(convert-prisoner)
+		back
+   )
+)
+(define cannon-check 
+	(verify (and (not-piece? Gold-Cannon)  (not-piece? Flying-Gold-Cannon)
+                  (not-piece? Silver-Cannon) (not-piece? Flying-Silver-Cannon)
+		      (not-piece? Copper-Cannon) (not-piece? Flying-Copper-Cannon)
+                  (not-piece? Iron-Cannon)   (not-piece? Flying-Iron-Cannon)))
+)
+
+(define shift (
+   (verify (in-zone? play-zone))
+   $1
+   (verify not-friend?)
+   (prisoner-check)
+   add
+))
+
+(define fshift (
+   (verify (in-zone? play-zone))
+   $1
+   (verify empty?)
+   add
+))
+
+(define leap (
+   (verify (in-zone? play-zone))
+   $1 
+   (verify not-empty?)
+   $1
+   (verify not-friend?)
+   (prisoner-check)
+   add
+))
+
+(define kleap (
+   (verify (in-zone? play-zone))
+   $1 
+   (verify not-empty?)
+   (cannon-check)	
+   $1
+   (verify not-friend?)
+   (cannon-check)
+   (prisoner-check)
+   add
+))
+
+(define shiftP (
+   (verify (in-zone? play-zone))
+   (set-flag came-from-zone (in-zone? promotion-zone))
+   $1
+   (verify not-friend?)
+   (prisoner-check)
+   (if (in-zone? $3) add)
+   (verify (or (flag? came-from-zone) (in-zone? promotion-zone)))
+   (if enemy?
+       (change-type $2)
+	   (if (in-zone? $3) (first-empty) (convert-prisoner))
+	   add
+	else
+	   (add $2)
+   )
+))
+
+(define shift2P (
+   (verify (in-zone? play-zone))
+   (set-flag came-from-zone (in-zone? promotion-zone))
+   $1
+   $2
+   (verify not-friend?)
+   (prisoner-check)
+   (if (in-zone? $4) add)
+   (verify (or (flag? came-from-zone) (in-zone? promotion-zone)))
+   (if enemy?
+       (change-type $3)
+	   (if (in-zone? $4) (first-empty) (convert-prisoner))
+	   add
+	else
+	   (add $3)
+   )
+))
+
+(define slide  (
+   (verify (in-zone? play-zone))
+   $1 (while empty? add $1)
+   (verify not-friend?)
+   (prisoner-check)
+   add
+))
+
+(define slideP (
+   (verify (in-zone? play-zone))
+   (set-flag came-from-zone (in-zone? promotion-zone))
+   $1
+   (while empty?
+      (if (in-zone? promotion-zone) (set-flag came-from-zone true))
+      (if (in-zone? $3) add)
+      (if (flag? came-from-zone) (add $2))
+      $1
+   )
+   (verify not-friend?)
+   (prisoner-check)
+   (if (in-zone? $3) add)
+   (verify (or (flag? came-from-zone) (in-zone? promotion-zone)))
+   (if enemy?
+       (change-type $2)
+	   (if (in-zone? $3) (first-empty) (convert-prisoner))
+	   add
+	else
+	   (add $2)
+   )
+))
+
+(define slide-ccannon   (
+	(verify (in-zone? play-zone))
+	$1 (while empty? add $1) $1 (while empty? $1) 
+	(verify enemy?) 
+	(prisoner-check)
+	add)
+)
+
+(define kccannon   (
+	(verify (in-zone? play-zone))
+	$1 (while empty? add $1) 
+      (cannon-check) $1
+      (while empty? $1) 
+	(verify enemy?)
+      (cannon-check)
+	(prisoner-check)
+	add)
+)
+
+
+(define slideP-ccannon (  
+	(verify (in-zone? play-zone))
+      (set-flag came-from-zone (in-zone? promotion-zone))
+      $1
+      (while empty?
+      	(if (in-zone? promotion-zone) (set-flag came-from-zone true))
+      	(if (in-zone? $3) add)
+      	(if (flag? came-from-zone) (add $2))
+      	$1
+      )
+	$1
+	(while empty? $1) 
+      (verify enemy?)
+      (prisoner-check)
+      (if (in-zone? $3) add)
+      (verify (or (flag? came-from-zone) (in-zone? promotion-zone)))
+      (if enemy?
+         (change-type $2)
+	   (if (in-zone? $3) (first-empty) (convert-prisoner))
+	   add
+	else
+	   (add $2)
+   )
+))
+
+(define Pkccannon (  
+	(verify (in-zone? play-zone))
+      (set-flag came-from-zone (in-zone? promotion-zone))
+      $1
+      (while empty?
+      	(if (in-zone? promotion-zone) (set-flag came-from-zone true))
+      	(if (in-zone? $3) add)
+      	(if (flag? came-from-zone) (add $2))
+      	$1
+      )
+      (cannon-check)
+	$1
+	(while empty? $1) 
+      (verify enemy?)
+	(cannon-check)
+      (prisoner-check)
+      (if (in-zone? $3) add)
+      (verify (or (flag? came-from-zone) (in-zone? promotion-zone)))
+      (if enemy?
+         (change-type $2)
+	   (if (in-zone? $3) (first-empty) (convert-prisoner))
+	   add
+	else
+	   (add $2)
+   )
+))
+
+
+(define slide-kcannon   (
+	(verify (in-zone? play-zone))
+	$1 
+	(while empty? $1) $1 (while empty? add $1) 
+	(verify not-friend?) 
+	(prisoner-check)
+	add)
+)
+
+(define kkcannon   (
+	(verify (in-zone? play-zone))
+	$1 
+	(while empty? $1)
+      (cannon-check)
+       $1 (while empty? add $1) 
+	(verify not-friend?)
+      (cannon-check) 
+	(prisoner-check)
+	add)
+)
+
+(define slideP-kcannon (  
+	(verify (in-zone? play-zone))
+      (set-flag came-from-zone (in-zone? promotion-zone))
+      $1 
+	(while empty? $1) $1
+	(while empty?  
+      	(if (in-zone? promotion-zone) (set-flag came-from-zone true))
+      	(if (in-zone? $3) add)
+     		(if (flag? came-from-zone) (add $2))
+      	$1
+      )
+	(verify not-friend?)
+      (prisoner-check)
+      (if (in-zone? $3) add)
+      (verify (or (flag? came-from-zone) (in-zone? promotion-zone)))
+      (if enemy?
+         (change-type $2)
+	   (if (in-zone? $3) (first-empty) (convert-prisoner))
+	   add
+	else
+	   (add $2)
+   )
+))
+
+(define Pkkcannon (  
+	(verify (in-zone? play-zone))
+      (set-flag came-from-zone (in-zone? promotion-zone))
+      $1 
+	(while empty? $1) 
+      (cannon-check)
+      $1
+	(while empty?  
+      	(if (in-zone? promotion-zone) (set-flag came-from-zone true))
+      	(if (in-zone? $3) add)
+     		(if (flag? came-from-zone) (add $2))
+      	$1
+      )
+	(verify not-friend?)
+      (cannon-check)
+      (prisoner-check)
+      (if (in-zone? $3) add)
+      (verify (or (flag? came-from-zone) (in-zone? promotion-zone)))
+      (if enemy?
+         (change-type $2)
+	   (if (in-zone? $3) (first-empty) (convert-prisoner))
+	   add
+	else
+	   (add $2)
+   )
+))
+
+
+(define drop-for-rank
+	(while (on-board? e)
+		(if empty? add)
+		e
+	)
+	(if empty? add)
+)
+(define drop ( ; $1 = drop zone
+	(verify (not-in-zone? play-zone))
+	to-board
+	(while (not-in-zone? $1) s)
+	(while (on-board? s)
+		mark
+			(drop-for-rank)
+		back
+		s
+	)
+	(drop-for-rank)
+))
+
+(define check-dir 
+    (if (and (not-flag? bSafe)
+	         (on-board? $1)
+			 (not-enemy? $1)
+	         (not-defended? $1)
+		)
+      (set-flag bSafe true)
+	)
+)
+
+(define mate-king 
+	(if empty? 
+          ; Check and disallow if it attacks a King with mate
+		(if (and (enemy? n) (piece? King n))
+		   ; Can undefended Pawn be taken by King
+		   ;   or can protected Pawn be taken?
+		   (set-flag bSafe (or not-defended? (attacked? no-king)))
+		   ; Check if King can make a move in any other direction
+		   n
+	       (check-dir e)
+	       (check-dir w)
+	       (check-dir n)
+	       (check-dir ne)
+	       (check-dir nw)
+	       (check-dir se)
+	       (check-dir sw)
+		   s
+ 		   (if (flag? bSafe) add)
+			   		          
+	     else
+		   (if (and (enemy? e) (piece? King e))
+		   (set-flag bSafe (or not-defended? (attacked? no-king)))
+		   e
+	       (check-dir s)
+	       (check-dir w)
+	       (check-dir n)
+	       (check-dir ne)
+	       (check-dir nw)
+	       (check-dir se)
+	       (check-dir sw)
+		   w
+		   (if (flag? bSafe) add)
+		else
+		   (if (and (enemy? w) (piece? King w))
+		   (set-flag bSafe (or not-defended? (attacked? no-king)))
+		   w
+	       (check-dir e)
+	       (check-dir s)
+	       (check-dir n)
+	       (check-dir ne)
+	       (check-dir nw)
+	       (check-dir se)
+	       (check-dir sw)
+		   e
+		   (if (flag? bSafe) add)
+		else
+			add)))))
+
+
+
+(define drop-pawn-for-file
+	(set-flag friendly-pawn false)
+	mark
+		(if (and friend? (piece? Pawn)) (set-flag friendly-pawn true))
+		(while (and (not-flag? friendly-pawn) (on-board? s))
+			s
+			(if (and friend? (piece? Pawn)) (set-flag friendly-pawn true))
+		)
+	back
+	
+	(if (not-flag? friendly-pawn)
+		mark
+		(mate-king)
+			(while (on-board? s) s
+				(mate-king)
+			) 
+		back
+	)
+)
+
+(define drop-pawn (
+	(verify (not-in-zone? play-zone))
+	to-board
+	(drop-pawn-for-file)
+	(while (on-board? e)
+		e
+		(drop-pawn-for-file)
+	)
+))
+
+(define ranki        9i 8i 7i 6i 5i 4i 3i 2i 1i)
+(define rankii       9ii 8ii 7ii 6ii 5ii 4ii 3ii 2ii 1ii)
+(define rankiii      9iii 8iii 7iii 6iii 5iii 4iii 3iii 2iii 1iii)
+(define rankiv-vi    9iv 8iv 7iv 6iv 5iv 4iv 3iv 2iv 1iv
+                     9v 8v 7v 6v 5v 4v 3v 2v 1v
+                     9vi 8vi 7vi 6vi 5vi 4vi 3vi 2vi 1vi)
+(define rankvii      9vii 8vii 7vii 6vii 5vii 4vii 3vii 2vii 1vii)
+(define rankviii     9viii 8viii 7viii 6viii 5viii 4viii 3viii 2viii 1viii)
+(define rankix       9ix 8ix 7ix 6ix 5ix 4ix 3ix 2ix 1ix)
+(define wprison
+	  pw2i    pw1i  
+	  pw2ii   pw1ii
+	  pw2iii  pw1iii
+	  pw2iv   pw1iv
+	  pw2v    pw1v
+	  pw2vi   pw1vi
+	  pw2vii  pw1vii
+	  pw2viii pw1viii
+	  pw2ix   pw2ix
+)
+(define bprison
+    pb1i    pb2i
+    pb1ii   pb2ii
+    pb1iii  pb2iii
+    pb1iv   pb2iv
+	pb1v    pb2v   
+	pb1vi   pb2vi   
+	pb1vii  pb2vii  
+	pb1viii pb2viii 
+	pb1ix   pb2ix
+)
+
+(game
+    (title "Cannon Shogi")
+	(description "Object: Checkmate your opponent's King (just like Western Chess)\\
+	     Right-click on the pieces to see how they move.  Most of the pieces
+		 can optionally promote when they reach the last 3 ranks.  A piece
+		 can also promote if it moves within or from the last 3 ranks.\\
+		 When a piece is captured it is added to the capturer's `reserve`, an
+             army of pieces which can be reintroduced into play on the capturer's
+             side (pieces in reserve are also said to be `in hand`).   Pieces are
+             all the same color, and the direction a piece is pointing from indicates
+             which player it belongs to.   On any subsequent turn, the capturer may
+             `drop` any captured piece (in its unpromoted state) onto a vacant square
+             on the board, subject to a few rules:\\
+		 * A Pawn may not be placed on a file that already contains a Pawn\
+		 * A Pawn may not be dropped with mate\
+		 * A Knight or Lance may not be placed on a square from which it
+		 will never be able to move.")
+	(history "Cannon Shogi was invented by Peter Michaelsen in 1998.\\ The following are Peter's comments on the game:\\With the introduction of the cannons of Chinese and Korean chess, as well as their diagonal equivalents, I want to add a new dimension to the game of Shogi. With a pawn array similar to Chinese and Korean Chess, allowing 52 possible first moves, the opening game tends to be much more tactical and explosive than in ordinary Shogi. Not only because of their high number, the cannons dominate the play more than in Xiangqi and Changgi. Because of the drops, the cannons will be more mobile and dangerous in all phases of the game. They may be weakened a little on board, as more and more pieces are captured and kept in hand, but they may still be very useful when dropped on the board again, or when other pieces are dropped in front of them.\\The reason why I have chosen to make the pawns move and capture sideways as well as forwards, is that they need some compensation for being only five against fifteen officers. I still want pawn play to be important; besides,the pawns may often open new possibilities for the cannons by their sideways moves. Especially when dropped, the pawns may also be valuable as defensive pieces. With the initial array I want to create as many moves for the cannons as possible. The orthogonal cannons flank the diagonal bishop, and vice versa, in order to obtain balance on the board.\\The right and left half of the second and eight rows have approximately the same strength. The reason why the two 'Korean' cannons, the Silver and Iron Cannon, are allowed to jump and capture other cannons, is that, otherwise, I think the rules would become too complicated, allowing some cannons a privilege, other cannons would not have. The most difficult decision was about, how the cannons should promote. They could, of course, promote simply to gold generals, like many other pieces in Shogi. I thought, however, that another sort of promotion would correspond better to the important role of the cannons in this variant, and, besides, make play more interesting. Therefore I chose to promote the cannons in a way that resembles the promotion of bishop and rook. \\If the cannons should promote in exactly the same way as the bishop and rook, they should, in fact, acquire the additional power of the king. This kind of promotion would not fit the cannons very well, however. They would then become very strong both at a distance and 'in infight'. In stead of this solution, I chose another solution, which put more emphasize on the characteristical features of the cannons. The RESULT of the promotion of the bishop and rook in Shogi is, that they acquire the additional strength of the other piece AT A SHORT DISTANCE. Correspondingly, the Gold Cannon in Cannon Shogi acquires the additional power of the Silver Cannon, and vice versa, as well as both pieces acquire the additional power of the Copper Cannon and Iron Cannon AT A SHORT DISTANCE, and vice versa. Thus, the predicate 'flying' for the promoted cannons fits very aptly, as they primarily gain greater mobility as a result of their promotion.")
+    (opening-sound "Audio\\Japan1.wav")
+    (win-sound "Audio\\Japan2.wav")
+    (loss-sound "Audio\\Japan2.wav")
+    (release-sound "Audio\\BongPercussive.wav")
+    (move-sound "Audio\\Bong5th.wav")
+    (capture-sound "Audio\\WoodBells.wav")
+    (players Black White)
+    (turn-order Black White)
+    (pass-turn false)
+    (allow-flipping false)
+    (board
+        (image "images\ShogiBrd.bmp")
+        (grid
+            (start-rectangle 14 16 54 61) ; 22 25 62 70)
+            (dimensions ;17x9
+
+				; za = zb = "no mans land" area between board and prisons
+				; pb1-3 = black's prison table
+				; pw1-3 = white's prison table
+
+                ("pw2/pw1/za/9/8/7/6/5/4/3/2/1/zb/pb1/pb2" (41 0))
+                ("i/ii/iii/iv/v/vi/vii/viii/ix" (0 46))
+            )
+            (directions (n 0 -1) (e 1 0) (s 0 1) (w -1 0)
+			     (ne 1 -1) (nw -1 -1) (se 1 1) (sw -1 1)
+            )
+		)
+
+		; delete "no mans land"
+		(kill-positions
+			zai zaii zaiii zaiv zav zavi zavii zaviii zaix
+			zbi zbii zbiii zbiv zbv zbvi zbvii zbviii zbix
+		)
+		(unlink (wprison) (bprison))
+ 
+		; setup prisoners chains (is there a better way to specify a general many to one link?)
+		(links to-prison
+			(9i pb1ix) (8i pb1ix) (7i pb1ix) (6i pb1ix) (5i pb1ix) (4i pb1ix) (3i pb1ix) (2i pb1ix) (1i pb1ix)
+            (9ii pb1ix) (8ii pb1ix) (7ii pb1ix) (6ii pb1ix) (5ii pb1ix) (4ii pb1ix) (3ii pb1ix) (2ii pb1ix) (1ii pb1ix)
+            (9iii pb1ix) (8iii pb1ix) (7iii pb1ix) (6iii pb1ix) (5iii pb1ix) (4iii pb1ix) (3iii pb1ix) (2iii pb1ix) (1iii pb1ix)
+            (9iv pb1ix) (8iv pb1ix) (7iv pb1ix) (6iv pb1ix) (5iv pb1ix) (4iv pb1ix) (3iv pb1ix) (2iv pb1ix) (1iv pb1ix)
+            (9v pb1ix) (8v pb1ix) (7v pb1ix) (6v pb1ix) (5v pb1ix) (4v pb1ix) (3v pb1ix) (2v pb1ix) (1v pb1ix)
+            (9vi pb1ix) (8vi pb1ix) (7vi pb1ix) (6vi pb1ix) (5vi pb1ix) (4vi pb1ix) (3vi pb1ix) (2vi pb1ix) (1vi pb1ix)
+            (9vii pb1ix) (8vii pb1ix) (7vii pb1ix) (6vii pb1ix) (5vii pb1ix) (4vii pb1ix) (3vii pb1ix) (2vii pb1ix) (1vii pb1ix)
+            (9viii pb1ix) (8viii pb1ix) (7viii pb1ix) (6viii pb1ix) (5viii pb1ix) (4viii pb1ix) (3viii pb1ix) (2viii pb1ix) (1viii pb1ix)
+            (9ix pb1ix) (8ix pb1ix) (7ix pb1ix) (6ix pb1ix) (5ix pb1ix) (4ix pb1ix) (3ix pb1ix) (2ix pb1ix) (1ix pb1ix)
+		)
+
+		(links to-white-prison ; associated with to-prison through symmetry
+			(9i pw1i) (8i pw1i) (7i pw1i) (6i pw1i) (5i pw1i) (4i pw1i) (3i pw1i) (2i pw1i) (1i pw1i)
+            (9ii pw1i) (8ii pw1i) (7ii pw1i) (6ii pw1i) (5ii pw1i) (4ii pw1i) (3ii pw1i) (2ii pw1i) (1ii pw1i)
+            (9iii pw1i) (8iii pw1i) (7iii pw1i) (6iii pw1i) (5iii pw1i) (4iii pw1i) (3iii pw1i) (2iii pw1i) (1iii pw1i)
+            (9iv pw1i) (8iv pw1i) (7iv pw1i) (6iv pw1i) (5iv pw1i) (4iv pw1i) (3iv pw1i) (2iv pw1i) (1iv pw1i)
+            (9v pw1i) (8v pw1i) (7v pw1i) (6v pw1i) (5v pw1i) (4v pw1i) (3v pw1i) (2v pw1i) (1v pw1i)
+            (9vi pw1i) (8vi pw1i) (7vi pw1i) (6vi pw1i) (5vi pw1i) (4vi pw1i) (3vi pw1i) (2vi pw1i) (1vi pw1i)
+            (9vii pw1i) (8vii pw1i) (7vii pw1i) (6vii pw1i) (5vii pw1i) (4vii pw1i) (3vii pw1i) (2vii pw1i) (1vii pw1i)
+            (9viii pw1i) (8viii pw1i) (7viii pw1i) (6viii pw1i) (5viii pw1i) (4viii pw1i) (3viii pw1i) (2viii pw1i) (1viii pw1i)
+            (9ix pw1i) (8ix pw1i) (7ix pw1i) (6ix pw1i) (5ix pw1i) (4ix pw1i) (3ix pw1i) (2ix pw1i) (1ix pw1i)
+		)
+
+		(links next-prison
+			(pb1ix pb2ix) (pb2ix pb1viii)
+			(pb1viii pb2viii) (pb2viii pb1vii)
+			(pb1vii pb2vii) (pb2vii pb1vi)
+			(pb1vi pb2vi) (pb2vi pb1v)
+			(pb1v pb2v) (pb2v pb1iv) 
+			(pb1iv pb2iv) (pb2iv pb1iii)
+			(pb1iii pb2iii) (pb2iii pb1ii)
+			(pb1ii pb2ii) (pb2ii pb1i)
+			(pb1i pb2i)
+
+			(pw1i pw2i) (pw2i pw1ii)
+			(pw1ii pw2ii) (pw2ii pw1iii)
+			(pw1iii pw2iii) (pw2iii pw1iv)
+			(pw1iv pw2iv) (pw2iv pw1v)
+			(pw1v pw2v) (pw2v pw1vi)
+			(pw1vi pw2vi) (pw2vi pw1vii)
+			(pw1vii pw2vii) (pw2vii pw1viii)
+			(pw1viii pw2viii) (pw2viii pw1ix)
+	        (pw1ix pw2ix)
+		)
+		(links to-board
+           (pw2i 9ix)    (pw1i 9ix)  
+		   (pw2ii 9ix)   (pw1ii 9ix)
+		   (pw2iii 9ix)  (pw1iii 9ix)
+		   (pw2iv 9ix)   (pw1iv 9ix) 
+		   (pw2v 9ix)    (pw1v 9ix)
+		   (pw2vi 9ix)   (pw1vi 9ix)
+		   (pw2vii 9ix)  (pw1vii 9ix)
+		   (pw2viii 9ix) (pw1viii 9ix)
+		   (pw2ix 9ix)   (pw1ix 9ix)
+
+           (pb1i 9i)     (pb2i 9i)
+		   (pb1ii 9i)    (pb2ii 9i)
+		   (pb1iii 9i)   (pb2iii 9i)
+		   (pb1iv 9i)    (pb2iv 9i)
+		   (pb1v 9i)     (pb2v 9i)
+		   (pb1vi 9i)    (pb2vi 9i)
+		   (pb1vii 9i)   (pb2vii 9i)
+		   (pb1viii 9i)  (pb2viii 9i)
+		   (pb1ix 9i)    (pb2ix 9i)   
+		)
+
+		(symmetry White (to-prison to-white-prison))
+        (symmetry White (n s)(s n) (nw sw)(sw nw) (ne se)(se ne))
+
+        (zone
+           (name play-zone)
+           (players White Black)
+           (positions (ranki) (rankii) (rankiii) (rankiv-vi) (rankvii) (rankviii) (rankix))
+        )
+        (zone
+           (name promotion-zone)
+           (players Black)
+           (positions (ranki) (rankii) (rankiii))
+        )
+        (zone
+           (name promotion-zone)
+           (players White)
+           (positions (rankvii) (rankviii) (rankix))
+        )
+        (zone
+           (name prison-zone)
+           (players Black)
+           (positions (bprison))
+        )
+        (zone
+           (name prison-zone)
+           (players White)
+           (positions (wprison))
+        )
+		(zone
+		   (name drop-pawn-zone) ; lance not pawn
+           (players Black)
+           (positions (rankii) (rankiii) (rankiv-vi) (rankvii) (rankviii) (rankix))
+        )
+		(zone
+		   (name drop-pawn-zone) ; lance not pawn
+           (players White)
+           (positions (ranki) (rankii) (rankiii) (rankiv-vi) (rankvii) (rankviii))
+        )
+		(zone
+		   (name drop-knight-zone)
+           (players Black)
+           (positions (rankiii) (rankiv-vi) (rankvii) (rankviii) (rankix))
+        )
+		(zone
+		   (name drop-knight-zone)
+           (players White)
+           (positions (ranki) (rankii) (rankiii) (rankiv-vi) (rankvii))
+        )
+    )
+    (board-setup
+        (White (Pawn 1iii 3iii 5iii 7iii 9iii)
+		   (Gold-Cannon 4ii)
+		   (Silver-Cannon 3ii)
+		   (Copper-Cannon 7ii)
+		   (Iron-Cannon 6ii)  	
+               (Lance 9i 1i)
+               (Knight 8i 2i)
+               (Silver 7i 3i)
+               (Gold 6i 4i)
+               (Bishop 2ii)
+               (Rook 8ii)
+               (King 5i)
+        )
+        (Black (Pawn 1vii 3vii 5vii 7vii 9vii)
+               (Gold-Cannon 6viii)
+		   (Silver-Cannon 7viii)
+		   (Copper-Cannon 3viii)
+		   (Iron-Cannon 4viii)  
+		   (Lance 9ix 1ix)
+               (Knight 8ix 2ix)
+               (Silver 7ix 3ix)
+               (Gold 6ix 4ix)
+               (Bishop 8viii)
+               (Rook 2viii)
+               (King 5ix)
+        )
+    )
+    (piece
+		(name Pawn)
+		(image White "images\Pawn_W.bmp" Black "images\Pawn_B.bmp")
+   	    (help "Pawn: steps 1 square straight ahead or sideways")
+		(description "Pawn\A Pawn moves a single square forward or sideways. It therefore has the same move as the Soldier of Korean Chess It captures just like it moves.  When it promotes it moves like a Gold General.")
+        (moves
+		   (move-type with-king)
+           (shiftP n Tokin play-zone)
+	     (shiftP e Tokin play-zone)
+           (shiftP w Tokin play-zone)
+ 		   (drop-pawn)
+        )
+    )
+    (piece
+		(name Tokin)
+		(image White "images\PPawn_W.bmp" Black "images\PPawn_B.bmp")
+ 	    (help "Tokin: steps 1 square in any direction except diagonally backwards")
+		(description "Promoted Pawn (Tokin)\A Tokin moves in the same way a Gold General does, i.e. a single step in any direction except diagonally backwards.")
+        (moves ; like a Gold General
+		    (move-type no-king)
+            (shift nw)
+            (shift n)
+            (shift ne)
+            (shift e)
+            (shift w)
+            (shift s)
+		(drop play-zone)
+        )
+    )
+   (piece
+        (name Gold-Cannon)
+        (help "Gold-Cannon: slides on row or column, captures by jumping")
+	    (description "Gold Cannon\
+	       The Gold Cannons move like Rooks, by sliding any number of squares along a row or column, but they can capture an enemy only if there is another piece (of either side) in between.  Thus to capture they leap over the intervening piece and land on the enemy piece, like a cannonball. This is the same move as the Cannon (Pao) of Chinese Chess (Xiangqi).\\The Gold Cannon promotes to a Flying Gold Cannon.")
+        (image White "images\GCannon_W.bmp" Black "images\GCannon_B.bmp")
+        (moves
+	     (move-type no-king)
+           (slideP-ccannon n Flying-Gold-Cannon play-zone)
+           (slideP-ccannon e Flying-Gold-Cannon play-zone)
+           (slideP-ccannon s Flying-Gold-Cannon play-zone)
+           (slideP-ccannon w Flying-Gold-Cannon play-zone)
+	     (drop play-zone)
+        )
+     )
+
+	(piece
+        (name Flying-Gold-Cannon)
+        (help "Flying Gold Cannon: slides on row or column, can move or take by jumping. Or moves 1 square or jumps to 2nd square diagonally")
+	    (description "Flying Gold Cannon\
+	     The Flying Gold Cannons move like Rooks, by sliding any number of squares along	a row or column, but they can capture an enemy only if there is another	piece (of either side) in between.  Thus to capture they leap over the	intervening piece and land on the enemy piece, like a cannonball. In addition the Flying Gold Cannon can jump a piece and land on a vacant square beyond. Alternatively it can move to an adjacent vacant square, or jump a piece to land on the 2nd square, in any of the diagonal directions.")
+        (image White "images\PGCannon_W.bmp" Black "images\PGCannon_B.bmp")
+        (moves
+	     (move-type no-king)
+           (slide-ccannon n)(slide-kcannon n)
+           (slide-ccannon e)(slide-kcannon e)
+           (slide-ccannon s)(slide-kcannon s)
+           (slide-ccannon w)(slide-kcannon w)
+	     (fshift nw)(leap nw)
+	     (fshift ne)(leap ne) 
+	     (fshift se)(leap sw)
+	     (fshift sw)(leap se)
+		(drop play-zone)			
+        )
+     )
+
+  (piece
+        (name Silver-Cannon)
+        (help "Silver Cannon: slides on row or column, captures by jumping. Must jump a piece to move.")
+	    (description "Silver Cannon\Silver Cannons move like Rooks, but can only move by leaping over an intervening piece, called a `screen`. This is the same move as the Cannon of Korean Chess.\\The Silver Cannon promotes to a Flying Silver Cannon.")
+        (image White "images\SCannon_W.bmp" Black "images\SCannon_B.bmp")
+        (moves
+	     (move-type no-king)
+           (slideP-kcannon n Flying-Silver-Cannon play-zone)
+           (slideP-kcannon e Flying-Silver-Cannon play-zone)
+           (slideP-kcannon s Flying-Silver-Cannon play-zone)
+           (slideP-kcannon w Flying-Silver-Cannon play-zone)
+	     (drop play-zone)
+        )
+     )
+
+     (piece
+        (name Flying-Silver-Cannon)
+        (help "Flying Silver Cannon: slides on row or column, can move or take by jumping. Or moves 1 square or jumps to 2nd square diagonally")
+	    (description "Flying Silver Cannon\
+	      The Flying Silver Cannons move like Rooks, by sliding any number of squares along	a row or column, but they can capture an enemy only if there is another piece (of either side) in between.  Thus to capture they leap over the	intervening piece and land on the enemy piece, like a cannonball. In addition the Flying Silver Cannon can jump a piece and land on a vacant square beyond. Alternatively it can move to an adjacent vacant square, or jump a piece to land on the 2nd square, in any of the diagonal directions.\\The move of Flying Silver Cannon is identical to that of the Flying Gold Cannon.")
+        (image White "images\PSCannon_W.bmp" Black "images\PSCannon_B.bmp")
+        (moves
+	     (move-type no-king)
+	     (slide-ccannon n)(slide-kcannon n)
+           (slide-ccannon e)(slide-kcannon e)
+           (slide-ccannon s)(slide-kcannon s)
+           (slide-ccannon w)(slide-kcannon w)
+	     (fshift nw)(leap nw)
+	     (fshift ne)(leap ne) 
+	     (fshift se)(leap sw)
+	     (fshift sw)(leap se)
+		(drop play-zone) 	
+        )
+     )
+
+  (piece
+        (name Copper-Cannon)
+        (help "Copper Cannon: slides on diagonals, captures by jumping")
+	    (description "Copper Cannon\
+	       Copper Cannons move like Bishops, by sliding any number of squares along a diagonal, but they can capture an enemy only if there is another piece (of either side) in between.  Thus to capture they leap over the intervening piece and land on the enemy piece, like a cannonball.\\The Copper Cannon has the same powers as the Cannon of Chinese Chess (Xiangqi), but moves in a diagonal rather than orthogonal direction. It promotes to the Flying Copper Cannon.")
+        (image White "images\CCannon_W.bmp" Black "images\CCannon_B.bmp")
+        (moves
+	     (move-type no-king)
+           (slideP-ccannon nw Flying-Copper-Cannon play-zone)
+           (slideP-ccannon ne Flying-Copper-Cannon play-zone)
+           (slideP-ccannon sw Flying-Copper-Cannon play-zone)
+           (slideP-ccannon se Flying-Copper-Cannon play-zone)
+	     (drop play-zone)
+        )
+     )
+
+(piece
+        (name Flying-Copper-Cannon)
+        (help "Flying Copper Cannon: slides on diagonals, can move or take by jumping. Or moves 1 square or jumps to 2nd square orthogonally")
+	    (description "Flying Copper Cannon\
+	      The Flying Copper Cannons move like Bishops, by sliding any number of squares along	a diagonal, but they can capture an enemy only if there is another piece (of either side) in between. Thus to capture they leap over the intervening piece and land on the enemy piece, like a cannonball. In addition the Flying Copper Cannon can jump a piece and land on a vacant square beyond in a diagonal direction. Alternatively it can move to an adjacent vacant square, or jump a piece to land on the 2nd square, in any of the orthogonal directions.")
+        (image White "images\PCCannon_W.bmp" Black "images\PCCannon_B.bmp")
+        (moves
+	     (move-type no-king)
+           (slide-ccannon nw)(slide-kcannon nw)
+           (slide-ccannon ne)(slide-kcannon ne)
+           (slide-ccannon sw)(slide-kcannon sw)
+           (slide-ccannon se)(slide-kcannon se)
+	     (fshift n)(leap n)
+	     (fshift e)(leap e) 
+	     (fshift s)(leap s)
+	     (fshift w)(leap w)
+		(drop play-zone)
+        )
+     )
+
+	(piece
+        (name Iron-Cannon)
+        (help "Iron Cannon: slides on diagonals, captures by jumping. Must jump a piece to move")
+	    (description "Iron Cannon\
+	       Iron Cannons move like Bishops, but can only move by leaping over an intervening piece, called a `screen`. This is the same move as the Cannon of Korean Chess, but in a diagonal rather than orthogonal direction.\\The Iron Cannon promotes to a Flying Iron Cannon.")
+        (image White "images\ICannon_W.bmp" Black "images\ICannon_B.bmp")
+        (moves
+	     (move-type no-king)
+           (slideP-kcannon nw Flying-Iron-Cannon play-zone)
+           (slideP-kcannon ne Flying-Iron-Cannon play-zone)
+           (slideP-kcannon se Flying-Iron-Cannon play-zone)
+           (slideP-kcannon sw Flying-Iron-Cannon play-zone)
+	     (drop play-zone)
+        )
+     )
+
+     (piece
+        (name Flying-Iron-Cannon)
+        (help "Flying Iron Cannon: slides on diagonals, can move or take by jumping. Or moves 1 square or jumps to 2nd square orthogonally")
+	    (description "Flying Iron Cannon\
+	      The Flying Iron Cannons move like Bishops, by sliding any number of squares along	a diagonal, but they can capture an enemy only if there is another piece (of either side) in between. Thus to capture they leap over the intervening piece and land on the enemy piece, like a cannonball. In addition the Flying Iron Cannon can jump a piece and land on a vacant square beyond in a diagonal direction. Alternatively it can move to an adjacent vacant square, or jump a piece to land on the 2nd square, in any of the orthogonal directions.\\ The move of the Flying Iron Cannon is identical to that of the Flying Copper Cannon.")
+        (image White "images\PICannon_W.bmp" Black "images\PICannon_B.bmp")
+        (moves
+	     (move-type no-king)
+	     (slide-ccannon nw)(slide-kcannon nw)
+           (slide-ccannon ne)(slide-kcannon ne)
+           (slide-ccannon sw)(slide-kcannon sw)
+           (slide-ccannon se)(slide-kcannon se)
+	     (fshift n)(leap n)
+	     (fshift e)(leap e) 
+	     (fshift s)(leap s)
+	     (fshift w)(leap w)
+		(drop play-zone)
+        )
+     )
+
+    (piece
+		(name Silver)
+		(image White "images\Silver_W.bmp" Black "images\Silver_B.bmp")
+   	    (help "Silver General: steps 1 square diagonally or straight ahead")
+        (description "Silver General\A Silver General moves a single step straight ahead or diagonally.  When it promotes it moves like a Gold General.")
+        (moves
+		    (move-type no-king)
+            (shiftP nw Promoted-Silver play-zone)
+            (shiftP n  Promoted-Silver play-zone)
+            (shiftP ne Promoted-Silver play-zone)
+            (shiftP sw Promoted-Silver play-zone)
+            (shiftP se Promoted-Silver play-zone)
+ 		    (drop play-zone)
+        )
+    )
+    (piece
+		(name Promoted-Silver)
+		(image White "images\PSilver_W.bmp" Black "images\PSilver_B.bmp")
+ 	    (help "Promoted Silver: steps 1 square in any direction except diagonally backwards")
+        (description "Promoted Silver General\ A promoted Silver General moves in the same way a Gold General does, i.e. a single step in any direction except diagonally backwards.")
+		(moves
+		    (move-type no-king)
+            (shift nw)
+            (shift n)
+            (shift ne)
+            (shift e)
+            (shift w)
+            (shift s)
+		(drop play-zone)
+        )
+    )
+
+    (piece
+		(name Gold)
+		(image White "images\Gold_W.bmp" Black "images\Gold_B.bmp")
+ 	    (help "Gold General: steps 1 square in any direction except diagonally backwards")
+        (description "Gold General\ A Gold General moves a single step in any direction except diagonally backwards.  It does not promote.")
+		(moves
+		    (move-type no-king)
+            (shift nw)
+            (shift n)
+            (shift ne)
+            (shift e)
+            (shift w)
+            (shift s)
+ 		    (drop play-zone)
+        )
+    )
+
+    (piece
+		(name Bishop)
+		(image White "images\Bishop_W.bmp" Black "images\Bishop_B.bmp")
+	    (help "Bishop: slides diagonally any number of squares")
+        (description "Bishop\A Shogi Bishop moves exactly as in chess, i.e. any number of squares on a diagonal.  It may not leap over other pieces.  When it promotes it gains a single step up, down, left, or right.")
+        (moves
+		   (move-type no-king)
+           (slideP ne Promoted-Bishop play-zone)
+           (slideP nw Promoted-Bishop play-zone)
+           (slideP se Promoted-Bishop play-zone)
+           (slideP sw Promoted-Bishop play-zone)
+		   (drop play-zone)
+        )
+    )
+    (piece
+		(name Promoted-Bishop)
+ 		(image White "images\PBishop_W.bmp" Black "images\PBishop_B.bmp")
+        (help "Promoted Bishop: makes a Bishop move or steps 1 square orthogonally.")
+        (description "Promoted Bishop (or `Dragon Horse`)\Moves any number of squares diagonally, or makes a single step orthogonally along a rank or file.  It may not leap over other pieces.")
+        (moves
+		   (move-type no-king)
+           (slide ne)
+           (slide nw)
+           (slide se)
+           (slide sw)
+           (shift n)
+           (shift s)
+           (shift e)
+           (shift w)
+		(drop play-zone)
+        )
+    )
+
+    (piece
+       (name Rook)
+       (image White "images\Rook_W.bmp" Black "images\Rook_B.bmp")
+       (help "Rook: slides any number of squares along the row or column.")
+       (description "Rook\A Cannon Shogi Rook moves exactly as in chess, i.e. any number of squares on a rank or a file.  It may not leap over other pieces.  When it promotes it gains a single step diagonally.")
+       (moves
+	       (move-type no-king)
+           (slideP n Promoted-Rook play-zone)
+           (slideP s Promoted-Rook play-zone)
+           (slideP e Promoted-Rook play-zone)
+           (slideP w Promoted-Rook play-zone)
+		   (drop play-zone)
+        )
+    )
+    (piece
+		(name Promoted-Rook)
+ 		(image White "images\PRook_W.bmp" Black "images\PRook_B.bmp")
+        (help "Promoted Rook: makes a Rook move or steps 1 square diagonally.")
+        (description "Promoted Rook (or `Dragon King`)\Moves any number of squares orthogonally on a rank or a file, or makes a single step diagonally to an adjacent square.  It may not leap over other pieces.")
+        (moves
+		   (move-type no-king)
+           (slide n)
+           (slide s)
+           (slide e)
+           (slide w)
+           (shift nw)
+           (shift ne)
+           (shift sw)
+           (shift se)
+		(drop play-zone)
+        )
+    )
+
+	(piece
+		(name Lance)
+		(image White "images\Lance_W.bmp" Black "images\Lance_B.bmp")
+ 	    (help "Lance : slides straight ahead any number of squares")
+ 		(description "Lance\A Lance moves any number of squares, but only directly forward.  When it promotes it moves like a Gold General.")
+        (moves
+		   (move-type no-king)
+           (slideP n Promoted-Lance drop-pawn-zone)
+ 		   (drop drop-pawn-zone)
+        )
+    )
+    (piece
+		(name Promoted-Lance)
+		(image White "images\PLance_W.bmp" Black "images\PLance_B.bmp")
+ 	    (help "Promoted Lance : steps 1 square in any direction except diagonally backwards")
+		(description "Promoted Lance\A promoted Lance moves in the same way a Gold General does, i.e. a single step in any direction except diagonally backwards.")
+        (moves ; like a Gold General
+		    (move-type no-king)
+            (shift nw)
+            (shift n)
+            (shift ne)
+            (shift e)
+            (shift w)
+            (shift s)
+		(drop play-zone)
+        )
+    )
+
+    (piece
+		(name Knight)
+		(image White "images\Knight_W.bmp" Black "images\Knight_B.bmp")
+  	    (help "Knight: hops ahead 2 squares and either left or right 1 square")
+		(description "Knight\A Cannon Shogi Knight hops over pieces as in Western Chess, but it is limited to forward motion: it leaps forward two squares and over one square to the left or right.  When it promotes it moves like a Gold General.")
+        (moves
+		    (move-type no-king)
+            (shift2P n nw Promoted-Knight drop-knight-zone)
+            (shift2P n ne Promoted-Knight drop-knight-zone)
+ 		    (drop drop-knight-zone)
+        )
+    )
+    (piece
+		(name Promoted-Knight)
+ 		(image White "images\PKnight_W.bmp" Black "images\PKnight_B.bmp")
+ 	    (help "Promoted Knight: steps 1 square in any direction except diagonally backwards")
+		(description "Promoted Knight\A promoted Knight moves in the same way a Gold General does, i.e. a single step in any direction except diagonally backwards.")
+        (moves ; like a Gold General
+		    (move-type no-king)
+            (shift nw)
+            (shift n)
+            (shift ne)
+            (shift e)
+            (shift w)
+            (shift s)
+		(drop play-zone)
+        )
+    )
+
+    (piece
+		(name King)
+		(image White "images\King_W.bmp" Black "images\King_B.bmp")
+		(help "King: steps 1 square in any direction to a safe square")
+        (description "King\A Cannon Shogi King can take a single step in
+		   any direction, just as in Western Chess.  It does not promote.  The King may not allow itself to move where it can be taken by the opponent.  The object of Cannon Shogi is to checkmate the enemy King.")
+        (moves
+		    (move-type with-king)
+            (shift nw)
+            (shift n)
+            (shift ne)
+            (shift e)
+            (shift w)
+            (shift sw)
+            (shift se)
+            (shift s)
+        )
+    )
+
+    (loss-condition (White Black) (checkmated King) )
+)
+
+(variant
+    (title "Cannon Shogi with no Pawn restrictions")
+    (piece
+		(name Pawn)
+		(image White "images\Pawn_W.bmp" Black "images\Pawn_B.bmp")
+   	    (help "Pawn: steps 1 square straight ahead or sideways")
+		(description "Pawn\A Pawn moves a single square forward or sideways. It therefore has the same move as the Soldier of Korean Chess It captures just like it moves.  When it promotes it moves like a Gold General.")
+        (moves
+		   (move-type with-king)
+           (shiftP n Tokin play-zone)
+	     (shiftP e Tokin play-zone)
+           (shiftP w Tokin play-zone)
+ 		   (drop play-zone)
+        )
+    )
+)
+(variant
+	(title "Cannon Shogi with no Pawn restrictions and swapped Cannons")
+	(board-setup
+        (White (Pawn 1iii 3iii 5iii 7iii 9iii)
+		   (Gold-Cannon 3ii)
+		   (Silver-Cannon 4ii)
+		   (Copper-Cannon 6ii)
+		   (Iron-Cannon 7ii)  	
+               (Lance 9i 1i)
+               (Knight 8i 2i)
+               (Silver 7i 3i)
+               (Gold 6i 4i)
+               (Bishop 2ii)
+               (Rook 8ii)
+               (King 5i)
+        )
+        (Black (Pawn 1vii 3vii 5vii 7vii 9vii)
+               (Gold-Cannon 7viii)
+		   (Silver-Cannon 6viii)
+		   (Copper-Cannon 4viii)
+		   (Iron-Cannon 3viii)  
+		   (Lance 9ix 1ix)
+               (Knight 8ix 2ix)
+               (Silver 7ix 3ix)
+               (Gold 6ix 4ix)
+               (Bishop 8viii)
+               (Rook 2viii)
+               (King 5ix)
+        )
+    )
+	(piece
+		(name Pawn)
+		(image White "images\Pawn_W.bmp" Black "images\Pawn_B.bmp")
+   	    (help "Pawn: steps 1 square straight ahead or sideways")
+		(description "Pawn\A Pawn moves a single square forward or sideways. It therefore has the same move as the Soldier of Korean Chess It captures just like it moves.  When it promotes it moves like a Gold General.")
+        (moves
+		   (move-type with-king)
+           (shiftP n Tokin play-zone)
+	     (shiftP e Tokin play-zone)
+           (shiftP w Tokin play-zone)
+ 		   (drop play-zone)
+        )
+    )
+)
+
+
+(variant
+    (title "Cannon Shogi with Korean Cannons and no Pawn restrictions")
+    (piece
+		(name Pawn)
+		(image White "images\Pawn_W.bmp" Black "images\Pawn_B.bmp")
+   	    (help "Pawn: steps 1 square straight ahead or sideways")
+		(description "Pawn\A Pawn moves a single square forward or sideways. It therefore has the same move as the Soldier of Korean Chess It captures just like it moves.  When it promotes it moves like a Gold General.")
+        (moves
+		   (move-type with-king)
+           (shiftP n Tokin play-zone)
+	     (shiftP e Tokin play-zone)
+           (shiftP w Tokin play-zone)
+ 		   (drop play-zone)
+        )
+    )
+   (piece
+        (name Gold-Cannon)
+        (help "Gold-Cannon: slides on row or column, captures by jumping")
+	    (description "Gold Cannon\
+	       The Gold Cannons move like Rooks, by sliding any number of squares along a row or column, but they can capture an enemy only if there is another piece (of either side) in between.  Thus to capture they leap over the intervening piece and land on the enemy piece, like a cannonball. However, the Gold Cannon can not jump or capture another cannon.\\The Gold Cannon promotes to a Flying Gold Cannon.")
+        (image White "images\GCannon_W.bmp" Black "images\GCannon_B.bmp")
+      (moves
+	     (move-type no-king)
+           (Pkccannon n Flying-Gold-Cannon play-zone)
+           (Pkccannon e Flying-Gold-Cannon play-zone)
+           (Pkccannon s Flying-Gold-Cannon play-zone)
+           (Pkccannon w Flying-Gold-Cannon play-zone)
+	     (drop play-zone)
+        )
+     )
+
+	(piece
+        (name Flying-Gold-Cannon)
+        (help "Flying Gold Cannon: slides on row or column, can move or take by jumping. Or moves 1 square or jumps to 2nd square diagonally")
+	    (description "Flying Gold Cannon\
+	     The Flying Gold Cannons move like Rooks, by sliding any number of squares along	a row or column, but they can capture an enemy only if there is another	piece (of either side) in between.  Thus to capture they leap over the	intervening piece and land on the enemy piece, like a cannonball. In addition the Flying Gold Cannon can jump a piece and land on a vacant square beyond. Alternatively it can move to an adjacent vacant square, or jump a piece to land on the 2nd square, in any of the diagonal directions. However, the Flying Gold Cannon can not jump or capture another cannon.")
+        (image White "images\PGCannon_W.bmp" Black "images\PGCannon_B.bmp")
+	  (moves
+	     (move-type no-king)
+           (kccannon n)(kkcannon n)
+           (kccannon e)(kkcannon e)
+           (kccannon s)(kkcannon s)
+           (kccannon w)(kkcannon w)
+	     (fshift nw)(kleap nw)
+	     (fshift ne)(kleap ne) 
+	     (fshift se)(kleap sw)
+	     (fshift sw)(kleap se)
+		(drop play-zone)			
+        )
+     )
+
+  (piece
+        (name Silver-Cannon)
+        (help "Silver Cannon: slides on row or column, captures by jumping. Must jump a piece to move.")
+	    (description "Silver Cannon\Silver Cannons move like Rooks, but can only move by leaping over an intervening piece, called a `screen`. However, the Silver Cannon can not jump or capture another cannon..\\The Silver Cannon promotes to a Flying Silver Cannon.")
+        (image White "images\SCannon_W.bmp" Black "images\SCannon_B.bmp")
+	  (moves
+	     (move-type no-king)
+           (Pkkcannon n Flying-Silver-Cannon play-zone)
+           (Pkkcannon e Flying-Silver-Cannon play-zone)
+           (Pkkcannon s Flying-Silver-Cannon play-zone)
+           (Pkkcannon w Flying-Silver-Cannon play-zone)
+	     (drop play-zone)
+        )
+     )
+
+     (piece
+        (name Flying-Silver-Cannon)
+        (help "Flying Silver Cannon: slides on row or column, can move or take by jumping. Or moves 1 square or jumps to 2nd square diagonally")
+	    (description "Flying Silver Cannon\
+	      The Flying Silver Cannons move like Rooks, by sliding any number of squares along	a row or column, but they can capture an enemy only if there is another piece (of either side) in between.  Thus to capture they leap over the	intervening piece and land on the enemy piece, like a cannonball. In addition the Flying Silver Cannon can jump a piece and land on a vacant square beyond. Alternatively it can move to an adjacent vacant square, or jump a piece to land on the 2nd square, in any of the diagonal directions. However, the Flying Silver Cannon can not jump or capture another cannon.\\The move of Flying Silver Cannon is identical to that of the Flying Gold Cannon.")
+        (image White "images\PSCannon_W.bmp" Black "images\PSCannon_B.bmp")
+        (moves
+	     (move-type no-king)
+	     (kccannon n)(kkcannon n)
+           (kccannon e)(kkcannon e)
+           (kccannon s)(kkcannon s)
+           (kccannon w)(kkcannon w)
+	     (fshift nw)(kleap nw)
+	     (fshift ne)(kleap ne) 
+	     (fshift se)(kleap sw)
+	     (fshift sw)(kleap se)
+		(drop play-zone) 	
+        )
+     )
+
+  (piece
+        (name Copper-Cannon)
+        (help "Copper Cannon: slides on diagonals, captures by jumping")
+	    (description "Copper Cannon\
+	       Copper Cannons move like Bishops, by sliding any number of squares along a diagonal, but they can capture an enemy only if there is another piece (of either side) in between.  Thus to capture they leap over the intervening piece and land on the enemy piece, like a cannonball.\\However, the Copper Cannon can not jump or capture another cannon. It promotes to the Flying Copper Cannon.")
+        (image White "images\CCannon_W.bmp" Black "images\CCannon_B.bmp")
+        (moves
+	     (move-type no-king)
+           (Pkccannon nw Flying-Copper-Cannon play-zone)
+           (Pkccannon ne Flying-Copper-Cannon play-zone)
+           (Pkccannon sw Flying-Copper-Cannon play-zone)
+           (Pkccannon se Flying-Copper-Cannon play-zone)
+	     (drop play-zone)
+        )
+     )
+
+(piece
+        (name Flying-Copper-Cannon)
+        (help "Flying Copper Cannon: slides on diagonals, can move or take by jumping. Or moves 1 square or jumps to 2nd square orthogonally")
+	    (description "Flying Copper Cannon\
+	      The Flying Copper Cannons move like Bishops, by sliding any number of squares along	a diagonal, but they can capture an enemy only if there is another piece (of either side) in between. Thus to capture they leap over the intervening piece and land on the enemy piece, like a cannonball. In addition the Flying Copper Cannon can jump a piece and land on a vacant square beyond in a diagonal direction. Alternatively it can move to an adjacent vacant square, or jump a piece to land on the 2nd square, in any of the orthogonal directions. However, the Flying Copper Cannon can not jump or capture another cannon.")
+        (image White "images\PCCannon_W.bmp" Black "images\PCCannon_B.bmp")
+        (moves
+	     (move-type no-king)
+           (kccannon nw)(kkcannon nw)
+           (kccannon ne)(kkcannon ne)
+           (kccannon sw)(kkcannon sw)
+           (kccannon se)(kkcannon se)
+	     (fshift n)(kleap n)
+	     (fshift e)(kleap e) 
+	     (fshift s)(kleap s)
+	     (fshift w)(kleap w)
+		(drop play-zone)
+        )
+     )
+
+	(piece
+        (name Iron-Cannon)
+        (help "Iron Cannon: slides on diagonals, captures by jumping. Must jump a piece to move")
+	    (description "Iron Cannon\
+	       Iron Cannons move like Bishops, but can only move by leaping over an intervening piece, called a `screen`. However, the Iron Cannon can not jump or capture another cannon.\\The Iron Cannon promotes to a Flying Iron Cannon.")
+        (image White "images\ICannon_W.bmp" Black "images\ICannon_B.bmp")
+	  (moves
+	     (move-type no-king)
+           (Pkkcannon nw Flying-Iron-Cannon play-zone)
+           (Pkkcannon ne Flying-Iron-Cannon play-zone)
+           (Pkkcannon se Flying-Iron-Cannon play-zone)
+           (Pkkcannon sw Flying-Iron-Cannon play-zone)
+	     (drop play-zone)
+        )
+     )
+
+     (piece
+        (name Flying-Iron-Cannon)
+        (help "Flying Iron Cannon: slides on diagonals, can move or take by jumping. Or moves 1 square or jumps to 2nd square orthogonally")
+	    (description "Flying Iron Cannon\
+	      The Flying Iron Cannons move like Bishops, by sliding any number of squares along	a diagonal, but they can capture an enemy only if there is another piece (of either side) in between. Thus to capture they leap over the intervening piece and land on the enemy piece, like a cannonball. In addition the Flying Iron Cannon can jump a piece and land on a vacant square beyond in a diagonal direction. Alternatively it can move to an adjacent vacant square, or jump a piece to land on the 2nd square, in any of the orthogonal directions. However, the Flying Iron Cannon can not jump or capture another cannon.\\ The move of the Flying Iron Cannon is identical to that of the Flying Copper Cannon.")
+        (image White "images\PICannon_W.bmp" Black "images\PICannon_B.bmp")
+        (moves
+	     (move-type no-king)
+	     (kccannon nw)(kkcannon nw)
+           (kccannon ne)(kkcannon ne)
+           (kccannon sw)(kkcannon sw)
+           (kccannon se)(kkcannon se)
+	     (fshift n)(kleap n)
+	     (fshift e)(kleap e) 
+	     (fshift s)(kleap s)
+	     (fshift w)(kleap w)
+		(drop play-zone)
+        )
+     )
+)
+

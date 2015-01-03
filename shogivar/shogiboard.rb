@@ -1,0 +1,148 @@
+class ShogiBoard < ChessBoard
+   def initialize
+   end
+
+   #find out if we need to promote
+   #return next action
+   def ask_promote(mv)
+      if mv.can_promote and mv.can_stay
+         case @promote
+         when :no  : mv.promote = false
+         when :yes : mv.promote = true
+         when :ask
+            cancel_move()
+            case Platform.message_box(:question, "Promote piece?",
+                                      "Don't promote", "Promote", :CANCEL)
+            when 0 : mv.promote = false
+            when 1 : mv.promote = true
+            when 2 : return :cancel
+            end
+            return :redo
+         end
+      else mv.promote = mv.can_promote
+      end
+      return :finish
+   end
+end
+
+class SmallShogiBoard < ShogiBoard
+   def initialize
+         
+   end
+
+   def do_player_move(movestr)
+      move = @pos.parse_move(movestr)
+      raise "invalid move received" if move.nil?
+
+      case move.type
+      when SIMPLE
+         x, y = move.from
+         to_x, to_y = move.to
+         end_all_animation
+         old = get_piece(to_x, to_y, MAINGRID)
+         piece = get_piece(x, y, MAINGRID)
+         
+         self.promote_to = piece.promote_to if move.promote
+         move_piece(x, y, MAINGRID, to_x, to_y, MAINGRID);
+
+         capture_piece(old.opposite) if old
+      when DROP
+         x, y = move.to
+         end_all_animation()
+         piece = get_piece(0, move.piece.to_i, @to_move)
+
+         move_piece(0, move.piece.to_i, @to_move, x, y, MAINGRID)
+         remove_captured(piece)
+      else
+         raise "Invalid movetype."
+      end
+      @pos.do_move(move)
+   end
+
+   def setup_board
+      for y in @type.width
+         for x in @type.height
+            piece, side = @pos[x, y]
+            if piece.nil?
+               put_piece(nil, x, y, MAINGRID)
+            else
+               put_piece(@theme.piece(piece.abbrev, side), x, y, MAINGRID)
+            end
+         end
+      end
+      
+      @type.capturable do |piece|
+         
+      end
+   end
+
+   def capture_piece(piece)
+      
+   end
+   
+   def remove_captured(piece)
+         
+   end
+
+   def try_move(x, y, to_x, to_y)
+      xr, yr = transform(x, y)
+      to_xr, to_yr = transform(to_x, to_y)
+      
+      mv = @pos.legal_move(xr, yr, to_xr, to_yr)
+      return nil if mv.nil?
+      
+      #if we are capturing save the piecetype of the captured piece
+      old = get_piece(to_x, to_y, MAINGRID)
+      piece = get_piece(x, y, MAINGRID)
+      
+      todo = ask_promote(mv)
+      #cancel move if canceled by user
+      return nil if todo == :cancel
+
+      self.promote_to = piece.promote_to if mv.promote
+      if todo == :redo
+         move_piece(x, y, MAINGRID, to_x, to_y, MAINGRID, true)
+      else #todo == :finish
+         finish_move; end
+      
+      capture_piece(old) if old
+      return mv
+   end
+
+   def try_drop(x, y, grid, to_x, to_y)
+      end_all_animation
+      piece = get_piece(x, y, grid)
+      
+      mv = @pos.legal_drop(piece.abbrev, to_x, to_y)
+      
+      return nil if mv.nil?
+
+      move_piece(0, piece.to_i, @to_move, to_x, to_y, MAINGRID)
+      remove_captured(piece)
+      return mv
+   end
+
+   #callback when the user makes a move
+   def user_move(x, y, grid, to_x, to_y, to_grid)
+      #move pieces only to the main board
+      return false if (to_grid != MAINGRID)
+
+      if to_grid != MAINGRID
+         mv = nil
+      else
+         if grid == MAINGRID
+            mv = try_move(x, y, to_x, to_y)
+         else
+            mv = try_drop(x, y, grid, to_x, to_y); end
+      end
+      
+      if mv.nil?
+         return false
+      else
+         finish_move()
+         board_moves(mv)
+      end
+
+      return true
+   end
+end

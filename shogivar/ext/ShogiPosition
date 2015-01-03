@@ -1,0 +1,84 @@
+= class Position
+
+Position implements the rules for each game.  It maintains the current position for the board and checks which moves are valid.
+
+== Object Hierarchy
+* Object
+  * ShogiPosition
+
+== Class Methods
+--- ShogiPosition.new(type)
+    Creates a new ShogiPosition object
+    * type: The number of the Shogivariant (0 - 20)
+    * returns: A new ShogiPosition object.
+      
+== Instance Methods
+--- init_setup()
+    Setup the basic position of the board.
+    * returns: nil
+
+--- legal_move(from, to)
+    Checks if the piece on the _from_ square can move to the _to_ square, and returns a ShogiPosition::Move object that will contain information about the move.  This object has to be passed to ShogiPosition#do_move in order to actually complete the move.
+    * from: An object containing the coordinates (from.x, from.y) of the source square.
+    * to: An object containing the coordinates (to.x, to.y) of the destination square.
+    * returns: A ShogiPosition::Move object that has information about the move, or nil if the move is illegal.
+
+--- legal_drop(piece, to)
+    Checks if _piece_ may be dropped on the _to_ square.  Returns a ShogiPosition::Move object that will contain information about the move.
+    * piece: A string describing the piece to be dropped.
+    * to: An object containing the coordinates (to.x, to.y) of the the destination square.
+    * returns: A ShogiPosition::Move object that has information about the move, or nil if the move is illegal.
+
+--- legal_cont(move, to)
+    Checks if the move may be continued by moving the piece to _to_, and will update the move, or return nil.
+    * move: A partially completed ShogiPosition::Move object returned by ShogiPosition::legal_move
+    * to: An object containing the coordinates (to.x, to.y) of the the destination square.
+    * returns: The updated ShogiPosition::Move object, or nil
+
+--- parse_move(str)
+    Parse the move given by str, and return a ShogiPosition::Move object describing the move if the move is valid, or nil otherwise.
+    * str: A string describing the move.
+    * returns: A ShogiPosition::Move object if the move is valid, nil otherwise
+
+--- dup()
+    Create a copy of the position.
+    * returns: a new ShogiPosition instance.
+
+--- do_move(move)
+    Perform the move on the position.
+    * The ShogiPosition::Move object that describes the move.
+    * returns: nil
+
+--- burns()
+    Returns the squares burned by the last move in games with a firedemon.
+    * returns: An Array of squares that are burned.  Each square is a two element array with the coordinates: [x, y].  If no piece is burned nil is returned.
+
+--- n_captures(piece, side)
+    In games with drops return the number of pieces of type piece that are captured by side.
+    * piece: a string describing the piece.
+    * side: The side that owns the captured pieces.
+    * returns: nil if side cannot captures pieces of kind _piece_.  The number of captured pieces otherwise.
+      
+--- [](square)
+    Return the piece and the side of the piece at square.
+    * square: An object containing the coordinates of the square (square.x, square.y).
+    * returns: A two element Array with the piece as ShogiPosition::Piece and the side as an integer.
+
+--- set_pos(board, [capt1, capt2, ] to_move)
+    Setup the position on the board from description given.  The capt1 and capt2 arrays are only used for small games.
+    * board: The board is an array of rows, with each row an array of squares.  The number of rows must match the height of the board, and the number of squares in the row must match the width.  A square is either nil for an empty square, or an array of two values: [piece, side].  piece is a string describing the piece, and side is the side as an integer.
+    * capt1 (only for small games): an array of captured pieces for the first side.  Each element in the array is the number of captures for the pieces that matches with that index in the array.
+    * capt2: idem for the second side.
+    * to_move: the side that will move next.
+
+--- write()
+    Return an ascii representation of the position.
+    * returns: A string with the representation.
+
+--- write_ggf
+    Return the position in ggf notation.
+    * returns: A string with the position in ggf notation.
+
+--- read_ggf
+    Read the position in ggf
+    * returns: true if the position was read.  false if it wasn't valid.

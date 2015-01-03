@@ -1,0 +1,1147 @@
+; *** Chu (Middle) Shogi  - Version 1.02 (19 April 2000)
+; *** Written by Steve Evans 
+; ***
+; *** trout@netspace.net.au  or steve.evans@dva.gov.au
+;
+; This is a rules file for the Windows program Zillions of Games.
+; When opened by Zillions of Games, you can play this game against
+; the computer or over the Internet.  For more information visit
+; the website <www.zillions-of-games.com> or email
+; info@zillions-of-games.com
+;
+; This file may be freely distributed as long as these notices are
+; kept intact.
+;
+; Changes in Version 1.02
+;
+; 1) Corrected a V1.01 problem with Lions not getting a 2nd move when capturing adjacent
+;    Pawns and Go-Betweens in some circumstances (Thanks to Dave Brandl for spotting this).
+; 2) Corrected a bug with the move of the Soaring Eagle (Thanks to Dr Eduard Werner).
+; 3) Fixed the graphics for the promoted-kylin part-move.
+;
+; Changes in Version 1.01
+;
+; 1) Added an alternative Japanese piece set, accessable via the 'Switch Piece Set' option. 
+;    (NOTE: The Japanese pieces were converted over from my Shogi Variants program by 
+;    Dr Jochum Drechsler. Thanks, Jochum!)
+; 2) Fixed a bug relating to Lion vs Lion captures where a Go-Between or Pawn is
+;    involved.
+; 3) Made some minor corrections to the piece descriptions.
+; 4) Turned off the "Flip Board" option. 
+;
+; TO DO: 1) Implement the rule preventing the capture of a Lion by a piece other than
+;           a Lion in the move immediately following the capture of the player's Lion by
+;           a non-Lion piece.
+;
+;        2) Implement the "Hidden Protector" rule which states that a defending Lion is 
+;           considered to be protected if the only piece blocking its protection by a
+;           friendly ranging piece is an attacking Lion.
+;
+;           NOTE: The above rules rarely impact on the average game of Chu Shogi.
+;
+;        3) Fix the graphics clipping that sometimes occurs with the White pieces.
+;
+
+(define prom-on        (set-attribute promote-rule? true))
+(define prom-off       (set-attribute promote-rule? false))
+(define leap           ($1 $1 (verify not-friend?) add))
+(define shift          ($1    (verify not-friend?) add))
+(define slide          ($1    (while empty? add $1) (verify not-friend?) add))
+(define lion-type-shift($1    (verify not-friend?) (add $2)))
+(define lion-type-move ($1    (verify enemy?) (add-partial $2)))
+(define pawn-move      ($1    (verify not-friend?) (pawn-add)))
+(define lance-move     ($1    (while empty? (lance-add) $1) (verify not-friend?)(lance-add)))  
+
+(define lion-igui     (n (if empty? s (add-copy $1) else s
+                          s (if empty? n (add-copy $1) else n
+                              e (if empty? w (add-copy $1) else w
+                                 w (if empty? e (add-copy $1) else e
+                                    nw (if empty? se (add-copy $1) else se
+                                       ne (if empty? sw (add-copy $1) else sw
+                                           sw (if empty? ne (add-copy $1) else ne
+                                               se (verify empty?) nw (add-copy $1)))))))))) 
+
+(define igui  ($1 (verify empty?) $2 (add-copy $3))) 
+
+
+(define lion-move    ($1 (verify enemy?) 
+                     (if (or (piece? Pawn)(piece? Go-Between))(add-partial $3) else
+                     (add-partial $2))))
+
+(define lion-shift ($1 (verify not-friend?) 
+                     (if (and (not-piece? Lion)(not-piece? Lion!))(add $2))))
+
+(define lion-leap    ($1 $1 (verify not-friend?)  
+                     (if (and (not-piece? Lion)(not-piece? Lion!)) add else
+                         (if not-attacked? add))))
+
+(define lion-leap2   ($1 $2 (verify not-friend?)  
+			   (if (and (not-piece? Lion)(not-piece? Lion!)) add else
+                         (if not-attacked? add))))
+
+(define shiftP (
+   (set-flag came-from-zone (in-zone? promotion-zone))
+   $1 (verify not-friend?)  
+   (if (or (in-zone? promotion-zone)(flag? came-from-zone)) 
+         (if (not-flag? came-from-zone)(prom-off)(add $2 $3) else
+             (if (or (promote-rule? (opposite $1)) enemy?)(prom-on)(add $2 $3) else 
+                 (prom-on) add)) 
+    else 
+       (prom-on) add)))
+
+(define leapP (
+   (set-flag came-from-zone (in-zone? promotion-zone)) mark
+   $1 $1 (verify not-friend?)  
+   (if (or (in-zone? promotion-zone) (flag? came-from-zone)) 
+         (if (not-flag? came-from-zone)(prom-off)(add $2 $3) else
+               to back
+               (if promote-rule? (add $2 $3) else  
+                  $1 $1 (prom-on)
+                  (if enemy? (add $2 $3) else add))) 
+    else 
+       (prom-on) add)))
+
+
+(define slideP (
+   (set-flag came-from-zone (in-zone? promotion-zone)) mark
+   $1 
+   (while empty?  
+       (if (or (in-zone? promotion-zone)(flag? came-from-zone))
+          (if (not-flag? came-from-zone)(prom-off)(add $2 $3) else 
+              (prom-on) to back 
+              (if promote-rule? (go to)(add $2 $3) else (go to) add))           
+       else 
+           (prom-on) add )
+   $1)
+   to (verify not-friend?)
+   (if (or (in-zone? promotion-zone) (flag? came-from-zone)) 
+          (if (not-flag? came-from-zone) (prom-off) (add $2 $3) else 
+                to back
+                (if promote-rule? (go to)(add $2 $3) else (go to)(prom-on)
+                   (if enemy? (add $2 $3) else add)))           
+    else 
+       (prom-on) add)))
+
+(define pawn-add
+   (if (in-zone? ninth-rank)(add Tokin Pawn) else
+     (if (in-zone? last-rank)(add Tokin) else add)))
+
+(define lance-add
+   (if (in-zone? last-rank)(add White-Horse) else
+     (if (in-zone? promotion-zone)(add Lance White-Horse) else add)))
+
+(game
+   (title "Chu (Middle) Shogi")
+   (description "Object: Capture the opponent's King and also capture the Crown Prince if the opponent has obtained one during the course of play. It is also possible to win by 'baring' the opponent's King (or Crown Prince) by capturing all of the other pieces.\\ To see a description of how a piece moves right-click on it to bring up its properties dialog.  (Control-right-click in Zillions 1.0.2 and later.)\\ Most of the pieces (except the King, Lion and Free King) can promote to another form on entering or making a move within the promotion-zone (the 9th to 12th ranks). While promotion is generally optional there are some restrictions. A piece that does not promote on entering the promotion-zone may not be promoted on its next move unless making a capture. A piece must promote if it would have no further legal move (ie: a Pawn or Lance must promote on reaching the 12th rank). In addition a Pawn that is not promoted on reaching the 9th rank can not be promoted until it reaches the 12th, at which point promotion is compulsory.\\Note: This implementation comes with two piece sets, one international (the default) and one Japanese. You can switch between them using the 'Switch Piece Set' menu option. The Japanese pieces were converted over from my Shogi Variants program by Dr Jochum Drechsler. Thanks, Jochum!")
+   (history "Chu Shogi (Middle Shogi) is a very ancient Japanese game of the chess family. It was mentioned in diaries as long ago as the twelfth century and therefore predates modern Shogi (and the modern game of Western Chess) by centuries.\\Chu was the most popular of the enlarged forms of Japanese Chess, and still had many adherents in parts of Japan until very recent times. Chu Shogi is the only variant (except Shogi itself) for which sets are still commercially available in Japan.\\ There are many unusual and powerful pieces which make Chu a very exciting and challenging game. The game is dominated (particularly in the early stages) by the 'Lion', a piece totally unlike any piece in Western Chess. There is no provision for returning captured pieces into play in Chu; the game may therefore seem more familiar to players of the western game than modern Shogi.")
+   (strategy "In the opening, try to develop your single step pieces and your Lion and do not try to rush your attack. The ranging pieces should generally be held back with a few step movers to protect the King. Try to position the pieces that promote powerfully (ie: Drunk Elephant, Kylin and Phoenix) so that they may reach the promotion-zone (the 9th to 12th ranks). The Lion is easily the most powerful piece. It should generally not be sacrificed for anything less than two Free Kings. Always protect your King.")
+   (opening-sound "Audio\\Japan1.wav")
+   (win-sound "Audio\\Japan2.wav")
+   (loss-sound "Audio\\Japan2.wav")
+   (release-sound "Audio\\BongPercussive.wav")
+   (move-sound "Audio\\Bong5th.wav")
+   (capture-sound "Audio\\WoodBells.wav")
+   (players Black White)
+   (turn-order Black White)
+   (pass-turn false)
+   (allow-flipping false)
+   (board 
+    (image "images/chu/ChuBoard.bmp")
+    (grid
+     (start-rectangle 5 5 54 54)
+     (dimensions
+         ("12/11/10/9/8/7/6/5/4/3/2/1" (35 0)) ; files
+         ("a/b/c/d/e/f/g/h/i/j/k/l" (0 35)) ; ranks
+     )
+     (directions (n 0 -1) (e 1 0) (s 0 1) (w -1 0)
+		     (ne 1 -1) (nw -1 -1) (se 1 1) (sw -1 1)
+     )
+  )
+  (symmetry White (n s)(s n) (nw sw)(sw nw) (ne se)(se ne))
+  (zone
+     (name promotion-zone)
+     (players White)
+     (positions 1i 2i 3i 4i 5i 6i 7i 8i 9i 10i 11i 12i
+		1j 2j 3j 4j 5j 6j 7j 8j 9j 10j 11j 12j
+		1k 2k 3k 4k 5k 6k 7k 8k 9k 10k 11k 12k
+		1l 2l 3l 4l 5l 6l 7l 8l 9l 10l 11l 12l)
+  )
+  (zone
+     (name promotion-zone)
+     (players Black)
+     (positions 1a 2a 3a 4a 5a 6a 7a 8a 9a 10a 11a 12a
+		1b 2b 3b 4b 5b 6b 7b 8b 9b 10b 11b 12b
+		1c 2c 3c 4c 5c 6c 7c 8c 9c 10c 11c 12c
+		1d 2d 3d 4d 5d 6d 7d 8d 9d 10d 11d 12d)
+  )
+  (zone
+     (name ninth-rank)
+     (players White)
+     (positions 1i 2i 3i 4i 5i 6i 7i 8i 9i 10i 11i 12i)
+  )
+  (zone
+     (name ninth-rank)
+     (players Black)
+     (positions 1d 2d 3d 4d 5d 6d 7d 8d 9d 10d 11d 12d)
+  )
+  (zone
+     (name last-rank)
+     (players White)
+     (positions 1l 2l 3l 4l 5l 6l 7l 8l 9l 10l 11l 12l)
+  )
+  (zone
+     (name last-rank)
+     (players Black)
+     (positions 1a 2a 3a 4a 5a 6a 7a 8a 9a 10a 11a 12a)
+  ))
+    (board-setup
+     (White
+        (Go-Between 9e 4e)
+        (Pawn 1d 2d 3d 4d 5d 6d 7d 8d 9d 10d 11d 12d)
+        (Lance 12a 1a)
+        (Ferocious-Leopard 11a 2a)
+        (Copper-General 10a 3a)
+        (Silver-General 9a 4a)
+        (Gold-General 8a 5a)
+        (King 6a)
+        (Drunk-Elephant 7a)
+        (Reverse-Chariot 12b 1b)
+        (Bishop 10b 3b)
+        (Blind-Tiger 8b 5b)
+        (Kylin 6b)
+        (Phoenix 7b)
+        (Side-Mover 12c 1c)
+        (Vertical-Mover 11c 2c)
+        (Rook 10c 3c)
+        (Dragon-Horse 9c 4c)
+        (Dragon-King 8c 5c)
+        (Lion 6c)
+        (Free-King 7c)      
+     )
+     (Black
+        (Go-Between 9h 4h)
+        (Pawn 1i 2i 3i 4i 5i 6i 7i 8i 9i 10i 11i 12i)
+        (Lance 12l 1l)
+        (Ferocious-Leopard 11l 2l)
+        (Copper-General 10l 3l)
+        (Silver-General 9l 4l)
+        (Gold-General 8l 5l)
+        (King 7l)
+        (Drunk-Elephant 6l)
+        (Reverse-Chariot 12k 1k)
+        (Bishop 10k 3k)
+        (Blind-Tiger 8k 5k)
+        (Kylin 7k)
+        (Phoenix 6k)
+        (Side-Mover 12j 1j)
+        (Vertical-Mover 11j 2j)
+        (Rook 10j 3j)
+        (Dragon-Horse 9j 4j)
+        (Dragon-King 8j 5j)
+        (Lion 7j)
+        (Free-King 6j)         
+     )
+  )
+   (piece
+      (name Pawn)
+	(notation "P")
+	  (help "Pawn: moves and captures 1 square forward. Promotes to Tokin.")
+      (description "Pawn\\A Pawn can move straight ahead one square. On reaching the 9th rank it can promote to a Tokin. If a player forgets to promote a Pawn on reaching the 9th rank it can not be promoted until reaching the last rank, at which point it must promote.")
+      (image White "images/chu/Pawn_W.bmp" "images/chu/JPawn_W.bmp" 
+		 Black "images/chu/Pawn_B.bmp" "images/chu/JPawn_B.bmp")
+      (moves
+         (pawn-move n)
+      )
+   )
+
+   (piece
+      (name Go-Between)
+	(notation "GB")  
+      (help "Go-Between: moves 1 square forward or backwards. Promotes to Drunk Elephant.")
+      (description "Go-Between\\A Go-Between can either move 1 square straight forwards or straight backwards. When making a move that begins or ends within the promotion zone (ranks 9 to 12) the Go-between may be promoted to a Drunk Elephant.")
+      (image White "images/chu/GoBetween_W.bmp" "images/chu/JGoBetween_W.bmp" 
+		 Black "images/chu/GoBetween_B.bmp" "images/chu/JGoBetween_B.bmp")
+      (attribute promote-rule? true)
+      (moves
+        (shiftP n Go-Between Drunk-Elephant!) (shiftP s Go-Between Drunk-Elephant!)
+      )
+   )
+
+   (piece
+      (name Bishop)
+	(notation "B")
+	  (help "Bishop: moves diagonally any number of squares. Promotes to Dragon Horse.")
+      (description "Bishop\\A Bishop moves any number of squares on a diagonal. It may not leap over other pieces. When making a move that begins or ends within the promotion zone (ranks 9 to 12) the Bishop may be promoted to a Dragon Horse.")
+      (image White "images/chu/Bishop_W.bmp" "images/chu/JBishop_W.bmp" 
+	       Black "images/chu/Bishop_B.bmp" "images/chu/JBishop_B.bmp")
+      (moves
+         (slideP ne Bishop Dragon-Horse!) (slideP nw Bishop Dragon-Horse!) 
+         (slideP se Bishop Dragon-Horse!) (slideP sw Bishop Dragon-Horse!)
+      )
+   )
+
+(piece
+      (name Bishop!)
+	(notation "+FL")
+	  (help "Bishop: moves diagonally any number of squares.")
+      (description "Bishop (promoted Ferocious Leopard)\\A Bishop moves any number of squares on a diagonal. It may not leap over other pieces.")
+      (image White "images/chu/PBishop_W.bmp" "images/chu/JPBishop_W.bmp"
+		 Black "images/chu/PBishop_B.bmp" "images/chu/JPBishop_B.bmp")
+      (moves
+         (slide ne) (slide nw)(slide se) (slide sw)
+      )
+   )
+
+   (piece
+      (name Rook)
+      (notation "R")
+      (help "Rook: moves any number of squares along a row or column. Promotes to Dragon King.")
+      (description "Rook\\A Rook moves any number of squares orthogonally on a rank or a file. It may not leap over other pieces. When making a move that begins or ends within the promotion zone (ranks 9 to 12) the Rook may be promoted to a Dragon King.")
+      (image White "images/chu/Rook_W.bmp" "images/chu/JRook_W.bmp"
+		 Black "images/chu/Rook_B.bmp" "images/chu/JRook_B.bmp")
+      (moves
+         (slideP n Rook Dragon-King!) (slideP e Rook Dragon-King!)
+         (slideP s Rook Dragon-King!) (slideP w Rook Dragon-King!)
+      )
+   )
+(piece
+      (name Rook!)
+      (notation "+G")
+      (help "Rook: moves any number of squares along a row or column.")
+      (description "Rook (promoted Gold General)\\A Rook moves any number of squares orthogonally on a rank or a file. It may not leap over other pieces.")
+      (image White "images/chu/PRook_W.bmp" "images/chu/JPRook_W.bmp"
+		 Black "images/chu/PRook_B.bmp" "images/chu/JPRook_B.bmp")
+      (moves
+         (slide n)(slide e)(slide s)(slide w)
+      )
+   )
+
+   (piece
+      (name Free-King)
+      (notation "FK")
+      (help "Free King: moves any number of squares in any direction.")
+      (description "Free King\\A Free King moves any number of squares in either an orthogonal or diagonal direction (ie: like a Queen in Western Chess). It does not promote and may not leap over other pieces.")
+      (image White "images/chu/FreeKing_W.bmp" "images/chu/JFreeKing_W.bmp"
+		 Black "images/chu/FreeKing_B.bmp" "images/chu/JFreeKing_B.bmp")
+      (moves
+         (slide n)  (slide e)  (slide s)  (slide w)
+         (slide nw) (slide ne) (slide se) (slide sw)
+      )
+   )
+
+(piece
+      (name Free-King!)
+      (notation "+Ph")
+      (help "Free King: moves any number of squares in any direction.")
+      (description "Free King (promoted Phoenix)\\A Free King moves any number of squares in either an orthogonal or diagonal direction (ie: like a Queen in Western Chess). It may not leap over other pieces.")
+      (image White "images/chu/PFreeKing_W.bmp" "images/chu/JPFreeKing_W.bmp"
+		 Black "images/chu/PFreeKing_B.bmp" "images/chu/JPFreeKing_B.bmp")
+      (moves
+         (slide n)  (slide e)  (slide s)  (slide w)
+         (slide nw) (slide ne) (slide se) (slide sw)
+      )
+   )
+
+(piece
+      (name Flying-Ox)
+      (notation "+VM")
+      (help "Flying Ox: moves any number of squares in any direction except sideways.")
+      (description "Flying Ox (promoted Vertical Mover)\\A Flying Ox moves any number of squares in any direction except horizontally. It may not leap over other pieces.")
+      (image White "images/chu/Ox_W.bmp" "images/chu/JOx_W.bmp"
+		 Black "images/chu/Ox_B.bmp" "images/chu/JOx_B.bmp")
+      (moves
+         (slide n)  (slide s)  (slide nw)
+         (slide ne) (slide se) (slide sw)
+      )
+   )
+
+(piece
+      (name Free-Boar)
+      (notation "+SM")
+      (help "Free Boar: moves any number of squares in any direction except forwards or backwards.")
+      (description "Free Boar(promoted Side Mover)\\A Free Boar moves any number of squares in any direction except straight forwards or backwards. It may not leap over other pieces.")
+      (image White "images/chu/Boar_W.bmp" "images/chu/JBoar_W.bmp"
+		 Black "images/chu/Boar_B.bmp" "images/chu/JBoar_B.bmp")
+      (moves
+         (slide e)  (slide w)  (slide nw)
+         (slide ne) (slide se) (slide sw)
+      )
+   )
+
+(piece
+      (name Horned-Falcon)
+      (notation "+DH")
+      (help "Horned Falcon: moves any number of squares in any direction except forwards. Moves
+      as a Lion in the forwards direction.")
+      (description "Horned Falcon (promoted Dragon Horse)\\A Horned Falcon moves any number of squares in any direction except straight forwards. In the forwards direction it moves as a Lion. When using its Lion power the Horned Falcon may move make two consecutive single step moves along the forward file during which it may capture up to TWICE or return to its starting square (the latter move being called 'igui'). (NOTE: To make an 'igui' move, select the piece and then drop it back on its starting square).\\The Horned Falcon may not leap over pieces other than when making a Lion-type move. The restrictions on Lion versus Lion capture do not apply to the Horned Falcon.")
+      (image White "images/chu/Falcon_W.bmp" "images/chu/JFalcon_W.bmp"
+		 Black "images/chu/Falcon_B.bmp" "images/chu/JFalcon_B.bmp")
+      (moves
+         (slide s) (slide e) (slide w) (slide nw) (slide ne)
+         (slide se)(slide sw) (lion-type-move n Horned-Falcon_part-move) 
+         (leap n) (shift n) (igui n s Horned-Falcon) 
+      )
+   )
+
+(piece
+      (name Horned-Falcon_part-move)
+      (notation "+DH")
+      (help "Horned Falcon: moves any number of squares in any direction except forwards. Moves as a Lion in the forwards direction.")
+      (image White "images/chu/Falcon_W.bmp" "images/chu/JFalcon_W.bmp"
+		 Black "images/chu/Falcon_B.bmp" "images/chu/JFalcon_B.bmp")
+      (moves
+         (lion-type-shift n Horned-Falcon) (lion-type-shift s Horned-Falcon)
+      )
+   )
+
+   (piece
+      (name Soaring-Eagle)
+      (notation "+DK")
+      (help "Soaring Eagle: moves any number of squares in any direction except diagonally forwards. It moves as a Lion in the diagonal forward directions.")
+      (description "Soaring Eagle (promoted Dragon King)\\A Soaring Eagle moves any number of squares in any direction except diagonally forwards. In the diagonal forwards directions it moves as a Lion. When using its Lion power the Soaring Eagle may move make two consecutive single step moves along the forward diagonal during which it may capture up to TWICE or return to its starting square (the latter move being called 'igui'). (NOTE: To make an 'igui' move, select the piece and then drop it back on its starting square).\\The Soaring Eagle may not leap over pieces other than when making a Lion-type move. The restrictions on Lion versus Lion capture do not apply to the Soaring Eagle.")
+      (image White "images/chu/Eagle_W.bmp" "images/chu/JEagle_W.bmp"
+		 Black "images/chu/Eagle_B.bmp" "images/chu/JEagle_B.bmp")
+      (moves
+         (slide s) (slide e) (slide w) (slide n) (slide se) (slide sw)
+         (lion-type-move nw Soaring-Eagle_part-move) 
+         (lion-type-move ne Soaring-Eagle_part-move2) 
+         (shift nw) (shift ne) (leap nw) (leap ne) 
+	 (igui nw se Soaring-Eagle) (igui ne sw Soaring-Eagle)
+      )
+   )
+
+(piece
+      (name Soaring-Eagle_part-move)
+      (notation "+DK")
+     (help "Soaring Eagle: moves any number of squares in any direction except diagonally forwards. It moves as a Lion in the diagonal forward directions.")
+      (image White "images/chu/Eagle_W.bmp" "images/chu/JEagle_W.bmp"
+		 Black "images/chu/Eagle_B.bmp" "images/chu/JEagle_B.bmp")
+      (moves
+         (lion-type-shift nw Soaring-Eagle) (lion-type-shift se Soaring-Eagle)
+      )
+   )
+
+(piece
+      (name Soaring-Eagle_part-move2)
+      (notation "+DK")
+      (help "Soaring Eagle: moves any number of squares in any direction except diagonally forwards. It moves as a Lion in the diagonal forward directions.")
+      (image White "images/chu/Eagle_W.bmp" "images/chu/JEagle_W.bmp"
+		 Black "images/chu/Eagle_B.bmp" "images/chu/JEagle_B.bmp")
+      (moves
+         (lion-type-shift ne Soaring-Eagle) (lion-type-shift sw Soaring-Eagle)
+      )
+   )
+
+(piece
+      (name Whale)
+      (notation "+RC")
+      (help "Whale: moves any number of squares backwards, forwards or diagonally backwards.")
+      (description "Whale (promoted Reverse Chariot)\\A Whale moves any number of squares backwards, forwards or diagonally backwards. It may not leap over other pieces.")
+      (image White "images/chu/Whale_W.bmp" "images/chu/JWhale_W.bmp"
+		 Black "images/chu/Whale_B.bmp" "images/chu/JWhale_B.bmp")
+      (moves
+         (slide n) (slide s) (slide se) (slide sw)
+      )
+   )
+
+(piece
+      (name White-Horse)
+      (notation "+L")
+      (help "White Horse: moves any number of squares backwards, forwards or diagonally forwards.")
+      (description "White Horse (promoted Lance)\\A White Horse moves any number of squares forwards, backwards or diagonally forwards. It may not leap over other pieces.")
+      (image White "images/chu/WHorse_W.bmp" "images/chu/JWHorse_W.bmp"
+		 Black "images/chu/WHorse_B.bmp" "images/chu/JWHorse_B.bmp")
+      (moves
+         (slide n) (slide s) (slide ne) (slide nw)
+      )
+   )
+
+(piece
+      (name Lion)
+      (notation "Ln")
+      (help "Lion: makes one OR TWO single step moves or may jump in any direction. Can capture twice.")
+      (description "Lion\\A Lion has a very complex and powerful move. There are also several special rules governing captures of Lions.\\A Lion may move as a King (a single step move in any direction), or it may make two consecutive King-type moves in any direction or directions, during which it may capture up to TWICE or return to its starting square (the latter move being called 'igui'). (NOTE: To make an 'igui' move, select the piece and then drop it back on its starting square).\\The Lion may also jump directly to a position two squares away, jumping in any orthogonal or diagonal direction, or alternatively jumping as a Knight in Western Chess.\\The special rules relating to the capture of Lions are as follows:\\A Lion can only capture an opposing Lion on the second square (ie: a square two removed from the starting square) that is protected, if the attacking Lion has already made a capture of a piece (other than a Pawn or Go-Between) in the same move. A defending Lion is considered to be protected even if the attacking Lion is blocking the defending piece. The piece defending the Lion in this scenario is called the 'hidden protector'. (NOTE: the 'hidden protector' rule is not yet implemented).\\In addition if your Lion is captured by a piece other than a Lion, then you may not immediately capture your opponent's Lion, except with another Lion. You must wait one move. (NOTE: This rule is also yet to be implemented.)")
+      (image White "images/chu/Lion_W.bmp" "images/chu/JLion_W.bmp"
+		 Black "images/chu/Lion_B.bmp" "images/chu/JLion_B.bmp")
+      (moves
+         (shift n)     (shift s)     (shift e)     (shift w)
+         (shift ne)    (shift nw)    (shift se)    (shift sw) (lion-igui Lion)
+         (lion-leap n) (lion-leap s) (lion-leap e) (lion-leap w)
+         (lion-leap ne)(lion-leap nw)(lion-leap se)(lion-leap sw)
+         (lion-leap2 n ne)(lion-leap2 n nw)(lion-leap2 s se)(lion-leap2 s sw)
+         (lion-leap2 e ne)(lion-leap2 e se)(lion-leap2 w nw)(lion-leap2 w sw)
+	   (lion-move n Lion_part-move Lion_part-move2) (lion-move s Lion_part-move Lion_part-move2)
+         (lion-move e Lion_part-move Lion_part-move2) (lion-move w Lion_part-move Lion_part-move2)
+	   (lion-move ne Lion_part-move Lion_part-move2) (lion-move nw Lion_part-move Lion_part-move2)
+         (lion-move se Lion_part-move Lion_part-move2) (lion-move sw Lion_part-move Lion_part-move2)     
+      )
+   )
+
+(piece
+      (name Lion_part-move2)
+      (notation "Ln")
+      (help "Lion: makes one OR TWO single step moves in any direction. Can capture twice.")
+      (image White "images/chu/Lion_W.bmp" "images/chu/JLion_W.bmp"
+		 Black "images/chu/Lion_B.bmp" "images/chu/JLion_B.bmp")
+      (moves
+         (lion-shift n Lion)  (lion-shift s Lion)  (lion-shift e Lion)  (lion-shift w Lion)
+         (lion-shift ne Lion) (lion-shift nw Lion) (lion-shift se Lion) (lion-shift sw Lion)
+      )
+   )
+
+(piece
+      (name Lion_part-move)
+      (notation "Ln")
+      (help "Lion: makes one OR TWO single step moves in any direction. Can capture twice.")
+      (image White "images/chu/Lion_W.bmp" "images/chu/JLion_W.bmp"
+		 Black "images/chu/Lion_B.bmp" "images/chu/JLion_B.bmp")
+      (moves
+         (lion-type-shift n Lion)  (lion-type-shift s Lion)
+	   (lion-type-shift e Lion)  (lion-type-shift w Lion)
+         (lion-type-shift ne Lion) (lion-type-shift nw Lion)
+	   (lion-type-shift se Lion) (lion-type-shift sw Lion)
+      )
+   )
+
+(piece
+      (name Lion!)
+      (notation "+Ky")
+      (help "Lion: makes one OR TWO single step moves or may jump in any direction. Can capture twice.")
+      (description "Lion (promoted Kylin)\\A Lion has a very complex and powerful move. There are also several special rules governing captures of Lions.\\A Lion may move as a King (a single step move in any direction), or it may make two consecutive King-type moves in any direction or directions, during which it may capture up to TWICE or return to its starting square (the latter move being called 'igui').(NOTE: To make an 'igui' move, select the piece and then drop it back on its starting square).\\The Lion may also jump directly to a position two squares away, jumping in any orthogonal or diagonal direction, or alternatively jumping as a Knight in Western Chess.\\The special rules relating to the capture of Lions are as follows:\\A Lion can only capture an opposing Lion on the second square (ie: a square two removed from the starting square) that is protected, if the attacking Lion has already made a capture of a piece (other than a Pawn or Go-Between) in the same move. A defending Lion is considered to be protected even if the attacking Lion is blocking the defending piece. The piece defending the Lion in this scenario is called the 'hidden protector'. (NOTE: the 'hidden protector' rule is not yet implemented).\\In addition if your Lion is captured by a piece other than a Lion, then you may not immediately capture your opponent's Lion, except with another Lion. You must wait one move. (NOTE: This rule is also yet to be implemented.)")
+      (image White "images/chu/PLion_W.bmp" "images/chu/JPLion_W.bmp"
+		 Black "images/chu/PLion_B.bmp" "images/chu/JPLion_B.bmp")
+      (moves
+         (shift n)     (shift s)     (shift e)     (shift w)
+         (shift ne)    (shift nw)    (shift se)    (shift sw) (lion-igui Lion!)
+         (lion-leap n) (lion-leap s) (lion-leap e) (lion-leap w)
+         (lion-leap ne)(lion-leap nw)(lion-leap se)(lion-leap sw)
+         (lion-leap2 n ne)(lion-leap2 n nw)(lion-leap2 s se)(lion-leap2 s sw)
+         (lion-leap2 e ne)(lion-leap2 e se)(lion-leap2 w nw)(lion-leap2 w sw)
+	   (lion-move n Lion!_part-move Lion!_part-move2)  (lion-move s Lion!_part-move Lion!_part-move2)
+         (lion-move e Lion!_part-move Lion!_part-move2)  (lion-move w Lion!_part-move Lion!_part-move2)
+	   (lion-move ne Lion!_part-move Lion!_part-move2) (lion-move nw Lion!_part-move Lion!_part-move2)
+         (lion-move se Lion!_part-move Lion!_part-move2) (lion-move sw Lion!_part-move Lion!_part-move2)     
+      )
+   )
+
+(piece
+      (name Lion!_part-move2)
+      (notation "+Ky")
+      (help "Lion: makes one OR TWO single step moves in any direction. Can capture twice.")
+      (image White "images/chu/PLion_W.bmp" "images/chu/JPLion_W.bmp"
+		 Black "images/chu/PLion_B.bmp" "images/chu/JPLion_B.bmp")
+      (moves
+         (lion-shift n Lion!)  (lion-shift s Lion!)  (lion-shift e Lion!)  
+         (lion-shift w Lion!)  (lion-shift ne Lion!) (lion-shift nw Lion!)
+         (lion-shift se Lion!) (lion-shift sw Lion!)
+      )
+   )
+
+(piece
+      (name Lion!_part-move)
+      (notation "+Ky")
+      (help "Lion: makes one OR TWO single step moves in any direction. Can capture twice.")
+      (image White "images/chu/PLion_W.bmp" "images/chu/JPLion_W.bmp"
+		 Black "images/chu/PLion_B.bmp" "images/chu/JPLion_B.bmp")
+      (moves
+         (lion-type-shift n Lion!)  (lion-type-shift s Lion!)
+	   (lion-type-shift e Lion!)  (lion-type-shift w Lion!)
+         (lion-type-shift ne Lion!) (lion-type-shift nw Lion!)
+	   (lion-type-shift se Lion!) (lion-type-shift sw Lion!)
+      )
+   )
+
+(piece
+      (name Dragon-King)
+      (notation "DK")
+      (help "Dragon King: moves any number of squares orthogonally or one square diagonally. 
+Promotes to Soaring Eagle.")
+      (description "Dragon King\\A Dragon King moves any number of squares orthogonally on a rank or a file, or 1 square in a diagonal direction. It may not leap over other pieces. When making a move that begins or ends within the promotion zone (ranks 9 to 12) the Dragon King may be promoted to a Soaring Eagle.")
+      (image White "images/chu/Dragon_W.bmp" "images/chu/JDragon_W.bmp"
+		 Black "images/chu/Dragon_B.bmp" "images/chu/JDragon_B.bmp")
+      (attribute promote-rule? true)
+      (moves
+         (slideP n Dragon-King Soaring-Eagle)  (slideP e Dragon-King Soaring-Eagle)
+         (slideP s Dragon-King Soaring-Eagle)  (slideP w Dragon-King Soaring-Eagle)
+         (shiftP nw Dragon-King Soaring-Eagle) (shiftP ne Dragon-King Soaring-Eagle) 
+         (shiftP se Dragon-King Soaring-Eagle) (shiftP sw Dragon-King Soaring-Eagle)
+      )
+   )
+
+(piece
+      (name Dragon-King!)
+      (notation "+R")
+      (help "Dragon King: moves any number of squares orthogonally or one square diagonally.")
+      (description "Dragon King (promoted Rook)\\A Dragon King moves any number of squares orthogonally on a rank or a file, or 1 square in a diagonal direction. It may not leap over other pieces.")
+      (image White "images/chu/PDragon_W.bmp" "images/chu/JPDragon_W.bmp"
+		 Black "images/chu/PDragon_B.bmp" "images/chu/JPDragon_B.bmp")
+      (moves
+         (slide n)  (slide e)  (slide s)  (slide w)
+         (shift nw) (shift ne) (shift se) (shift sw)
+      )
+   )
+
+(piece
+      (name Dragon-Horse)
+      (notation "DH")
+      (help "Dragon Horse: moves any number of squares diagonally, or one square orthogonally.
+      Promotes to Horned Falcon.")
+      (description "Dragon Horse\\A Dragon Horse moves any number of squares diagonally, or 1 square in an orthogonal direction. It may not leap over other pieces. When making a move that begins or ends within the promotion zone (ranks 9 to 12) the Dragon Horse may be promoted to a Horned Falcon.")
+      (image White "images/chu/Horse_W.bmp" "images/chu/JHorse_W.bmp"
+		 Black "images/chu/Horse_B.bmp" "images/chu/JHorse_B.bmp")
+      (attribute promote-rule? true)
+      (moves
+         (shiftP n Dragon-Horse Horned-Falcon)  (shiftP e Dragon-Horse Horned-Falcon)
+         (shiftP s Dragon-Horse Horned-Falcon)  (shiftP w Dragon-Horse Horned-Falcon)
+         (slideP nw Dragon-Horse Horned-Falcon) (slideP ne Dragon-Horse Horned-Falcon)
+         (slideP se Dragon-Horse Horned-Falcon) (slideP sw Dragon-Horse Horned-Falcon)
+      )
+   )
+
+(piece
+      (name Dragon-Horse!)
+      (notation "+B")
+      (help "Dragon Horse: moves any number of squares diagonally, or one square orthogonally.")
+      (description "Dragon Horse (promoted Bishop)\\A Dragon Horse moves any number of squares diagonally, or 1 square in an orthogonal direction. It may not leap over other pieces.")
+      (image White "images/chu/PHorse_W.bmp" "images/chu/JPHorse_W.bmp"
+		 Black "images/chu/PHorse_B.bmp" "images/chu/JPHorse_B.bmp")
+      (moves
+         (shift n)  (shift e)  (shift s)  (shift w)
+         (slide nw) (slide ne) (slide se) (slide sw)
+      )
+   )
+
+(piece
+      (name Kylin)
+      (notation "Ky")
+      (help "Kylin: moves one square diagonally or jumps to the 2nd square orthogonally.
+       Promotes to Lion.")
+      (description "Kylin\\A Kylin may move one square diagonally or jump to the second square in any orthogonal direction. When making a move that begins or ends within the promotion zone (ranks 9 to 12) the Kylin may be promoted to a Lion.")
+      (image White "images/chu/Kylin_W.bmp" "images/chu/JKylin_W.bmp"
+		 Black "images/chu/Kylin_B.bmp" "images/chu/JKylin_B.bmp")
+     (attribute promote-rule? true)
+      (moves
+         (leapP n Kylin Lion!)   (leapP e Kylin Lion!)   (leapP s Kylin Lion!)
+         (leapP w Kylin Lion!)   (shiftP nw Kylin Lion!) (shiftP ne Kylin Lion!)
+         (shiftP se Kylin Lion!) (shiftP sw Kylin Lion!)
+      )
+   )
+
+(piece
+      (name Phoenix)
+      (notation "Ph")
+      (help "Phoenix: moves one square orthogonally or jumps to the 2nd square diagonally.
+       Promotes to Free King.")
+      (description "Phoenix\\A Phoenix may move one square orthogonally or jump to the second square in any diagonal direction. When making a move that begins or ends within the promotion zone (ranks 9 to 12) the Phoenix may be promoted to a Free King.")
+      (image White "images/chu/Phoenix_W.bmp" "images/chu/JPhoenix_W.bmp"
+		 Black "images/chu/Phoenix_B.bmp" "images/chu/JPhoenix_B.bmp")
+      (attribute promote-rule? true)
+      (moves
+         (leapP nw Phoenix Free-King!) (leapP ne Phoenix Free-King!) 
+         (leapP se Phoenix Free-King!) (leapP sw Phoenix Free-King!)
+         (shiftP n Phoenix Free-King!) (shiftP e Phoenix Free-King!)
+         (shiftP s Phoenix Free-King!) (shiftP w Phoenix Free-King!)
+      )
+   )
+
+(piece
+      (name Reverse-Chariot)
+      (notation "RC")
+      (help "Reverse Chariot: moves any number of squares forwards or backwards.
+       Promotes to Whale.")
+      (description "Reverse Chariot\\A Reverse Chariot may move any number of squares straight forwards or backwards in a file. It may not leap over other pieces. When making a move that begins or ends within the promotion zone (ranks 9 to 12) the Reverse Chariot may be promoted to a Whale.")
+      (image White "images/chu/Reverse_W.bmp" "images/chu/JReverse_W.bmp"
+		 Black "images/chu/Reverse_B.bmp" "images/chu/JReverse_B.bmp")
+      (moves
+         (slideP n Reverse-Chariot Whale) (slideP s Reverse-Chariot Whale)
+      )
+   )
+
+   (piece
+      (name Side-Mover)
+      (notation "SM")
+      (help "Side Mover: moves any number of squares sideways or one square forwards or backwards. Promotes to Free Boar.")
+      (description "Side Mover\\A Side Mover may move any number of squares straight sideways in a rank, or one square vertically. It may not leap over other pieces. When making a move that begins or ends within the promotion zone (ranks 9 to 12) the Side Mover may be promoted to a Free Boar.")
+      (image White "images/chu/Side_W.bmp" "images/chu/JSide_W.bmp"
+		 Black "images/chu/Side_B.bmp" "images/chu/JSide_B.bmp")
+      (attribute promote-rule? true)
+      (moves
+         (slideP e Side-Mover Free-Boar) (slideP w Side-Mover Free-Boar)
+         (shiftP n Side-Mover Free-Boar) (shiftP s Side-Mover Free-Boar)
+      )
+   )
+
+(piece
+      (name Side-Mover!)
+      (notation "+C")
+      (help "Side Mover: moves any number of squares sideways or one square vertically.")
+      (description "Side Mover (promoted Copper General)\\A Side Mover may move any number of squares straight sideways in a rank, or one square vertically. It may not leap over other pieces. When making a move that begins or ends within the promotion zone (ranks 9 to 12) the Side Mover may be promoted to a Free Boar.")
+      (image White "images/chu/PSide_W.bmp" "images/chu/JPSide_W.bmp"
+		 Black "images/chu/PSide_B.bmp" "images/chu/JPSide_B.bmp")
+      (moves
+         (slide e) (slide w)
+         (shift n) (shift s)
+      )
+   )
+
+   (piece
+      (name Vertical-Mover)
+      (notation "VM")
+      (help "Vertical Mover: moves any number of squares vertically or one square sideways.
+       Promotes to Flying Ox.")
+      (description "Vertical Mover\\A Vertical Mover may move any number of squares straight forwards or backwards in a file, or one square horizontally. It may not leap over other pieces. When making a move that begins or ends within the promotion zone (ranks 9 to 12) the Vertical Mover may be promoted to a Flying Ox.")
+      (image White "images/chu/Vertical_W.bmp" "images/chu/JVertical_W.bmp"
+		 Black "images/chu/Vertical_B.bmp" "images/chu/JVertical_B.bmp")
+      (attribute promote-rule? true)
+      (moves
+         (slideP s Vertical-Mover Flying-Ox) (slideP n Vertical-Mover Flying-Ox)
+         (shiftP e Vertical-Mover Flying-Ox) (shiftP w Vertical-Mover Flying-Ox)
+      )
+   )
+
+(piece
+      (name Vertical-Mover!)
+      (notation "+S")
+      (help "Vertical Mover: moves any number of squares vertically or one square sideways.")
+      (description "Vertical Mover (promoted Silver General)\\A Vertical Mover may move any number of squares straight forwards or backwards in a file, or one square horizontally. It may not leap over other pieces. When making a move that begins or ends within the promotion zone (ranks 9 to 12) the Vertical Mover may be promoted to a Flying Ox.")
+      (image White "images/chu/PVertical_W.bmp" "images/chu/JPVertical_W.bmp"
+		 Black "images/chu/PVertical_B.bmp" "images/chu/JPVertical_B.bmp")
+      (moves
+         (slide s) (slide n)
+         (shift e) (shift w)
+      )
+   )
+
+   (piece
+      (name Flying-Stag)
+      (notation "+BT")
+      (help "Flying Stag: moves any number of squares forwards or backwards or one square in any other direction.")
+      (description "Flying Stag (promoted Blind Tiger)\\A Flying Stag may move any number of squares straight forwards or backwards in a file, or one square in any other direction. It may not leap over other pieces.")
+      (image White "images/chu/Stag_W.bmp" "images/chu/JStag_W.bmp"
+		 Black "images/chu/Stag_B.bmp" "images/chu/JStag_B.bmp")
+      (moves
+         (slide s)  (slide n)  (shift e)  (shift w)
+         (shift se) (shift sw) (shift ne) (shift nw)
+      )
+   )
+
+   (piece
+      (name Lance)
+	(notation "L")
+	  (help "Lance: can move any number of squares straight forward. Promotes to White Horse")
+      (description "Lance\\A Lance moves any number of unobstructed squares straight forwards. It may not leap over other pieces. When making a move into or within the promotion zone (ranks 9 to 11) the Lance may optionally be promoted to a White Horse. A Lance that reaches the last (12th) rank must promote.")
+      (image White "images/chu/Lance_W.bmp" "images/chu/JLance_W.bmp"
+		 Black "images/chu/Lance_B.bmp" "images/chu/JLance_B.bmp")
+      (moves
+         (lance-move n)         
+      )
+   )
+
+   (piece
+      (name King)
+	(notation "K")
+	(help "King: steps 1 square in any direction to a safe square.")
+      (description "King\\A King can move to any adjacent square, but never to a 
+	 square from where it can be captured unless there is also a friendly Crown Prince on the board. If there is no Crown Prince on the players side and the King is captured, or is the only remaining piece, the game is lost.")
+      (image White "images/chu/King_W.bmp" "images/chu/JKing_W.bmp"
+		 Black "images/chu/King_B.bmp" "images/chu/JKing_B.bmp")
+      (moves
+         (shift n)  (shift e)  (shift s)  (shift w)
+         (shift ne) (shift nw) (shift se) (shift sw)
+      )
+   )
+ (piece
+      (name Crown-Prince)
+	(notation "+DE")
+	  (help "Crown Prince: steps 1 square in any direction to a safe square.")
+      (description "Crown Prince (promoted Drunk Elephant)\\A Crown Prince is effectively a second King and can move to any adjacent square, but never to a square from where it can be captured unless there is also a friendly King on the board. If there is no King on the players side and the Crown Prince is captured, or is the only remaining piece, the game is lost.")
+      (image White "images/chu/Prince_W.bmp" "images/chu/JPrince_W.bmp"
+		 Black "images/chu/Prince_B.bmp" "images/chu/JPrince_B.bmp")
+      (moves
+         (shift n)  (shift e)  (shift s)  (shift w)
+         (shift ne) (shift nw) (shift se) (shift sw)
+      )
+   )
+
+(piece
+      (name Blind-Tiger)
+	(notation "BT")
+	(help "Blind Tiger: steps 1 square in any direction except straight forward. Promotes to Flying Stag.")
+      (description "Blind Tiger\\A Blind Tiger can move one square in any direction except straight forwards. When making a move that begins or ends within the promotion zone (ranks 9 to 12) the Blind Tiger may be promoted to a Flying Stag.")
+      (image White "images/chu/Tiger_W.bmp" "images/chu/JTiger_W.bmp"
+		 Black "images/chu/Tiger_B.bmp" "images/chu/JTiger_B.bmp")
+      (attribute promote-rule? true)
+      (moves
+         (shiftP e Blind-Tiger Flying-Stag)  (shiftP s Blind-Tiger Flying-Stag)
+         (shiftP w Blind-Tiger Flying-Stag)  (shiftP ne Blind-Tiger Flying-Stag)
+         (shiftP nw Blind-Tiger Flying-Stag) (shiftP se Blind-Tiger Flying-Stag) 
+         (shiftP sw Blind-Tiger Flying-Stag)
+      )
+   )
+
+(piece
+      (name Drunk-Elephant)
+	(notation "DE")
+	(help "Drunk Elephant: steps 1 square in any direction except straight backwards. Promotes to Crown Prince.")
+      (description "Drunk Elephant\\A Drunk Elephant can move one square in any direction except straight backwards. When making a move that begins or ends within the promotion zone (ranks 9 to 12) the Drunk Elephant may be promoted to a Crown Prince.")
+      (image White "images/chu/Elephant_W.bmp" "images/chu/JElephant_W.bmp"
+		 Black "images/chu/Elephant_B.bmp" "images/chu/JElephant_B.bmp")
+      (attribute promote-rule? true)
+      (moves
+         (shiftP e Drunk-Elephant Crown-Prince)  (shiftP n Drunk-Elephant Crown-Prince)  
+         (shiftP w Drunk-Elephant Crown-Prince)  (shiftP ne Drunk-Elephant Crown-Prince)
+         (shiftP nw Drunk-Elephant Crown-Prince) (shiftP se Drunk-Elephant Crown-Prince) 
+         (shiftP sw Drunk-Elephant Crown-Prince)
+      )
+   )
+
+(piece
+      (name Drunk-Elephant!)
+	(notation "+GB")
+	(help "Drunk Elephant: steps 1 square in any direction except straight backwards.")
+      (description "Drunk Elephant (promoted Go-Between)\\A Drunk Elephant can move one square in any direction except straight backwards.")
+      (image White "images/chu/PElephant_W.bmp" "images/chu/JPElephant_W.bmp"
+		 Black "images/chu/PElephant_B.bmp" "images/chu/JPElephant_B.bmp")
+      (moves
+         (shift e)  (shift n)  (shift w)  (shift ne)
+         (shift nw) (shift se) (shift sw)
+      )
+   )
+(piece
+      (name Ferocious-Leopard)
+	(notation "FL")
+	(help "Ferocious Leopard: steps 1 square in any direction except directly sideways. Promotes to Bishop.")
+      (description "Ferocious Leopard\\A Ferocious Leopard can move one square in any direction except horizontally. When making a move that begins or ends within the promotion zone (ranks 9 to 12) the Ferocious Leopard may be promoted to a Bishop.")
+      (image White "images/chu/Leopard_W.bmp" "images/chu/JLeopard_W.bmp"
+		 Black "images/chu/Leopard_B.bmp" "images/chu/JLeopard_B.bmp")
+      (attribute promote-rule? true)
+      (moves
+         (shiftP s Ferocious-Leopard Bishop!)  (shiftP n Ferocious-Leopard Bishop!)  
+         (shiftP ne Ferocious-Leopard Bishop!) (shiftP nw Ferocious-Leopard Bishop!)
+         (shiftP se Ferocious-Leopard Bishop!) (shiftP sw Ferocious-Leopard Bishop!)
+      )
+   )
+
+(piece
+      (name Gold-General)
+	(notation "G")
+	(help "Gold General: steps 1 square in any direction except diagonally backwards. Promotes to Rook.")
+      (description "Gold General\\A Gold General can move one square in any direction except diagonally backwards. When making a move that begins or ends within the promotion zone (ranks 9 to 12) the Gold General may be promoted to a Rook.")
+      (image White "images/chu/Gold_W.bmp" "images/chu/JGold_W.bmp"
+		 Black "images/chu/Gold_B.bmp" "images/chu/JGold_B.bmp")
+      (attribute promote-rule? true)
+      (moves
+         (shiftP s Gold-General Rook!) (shiftP n Gold-General Rook!) 
+         (shiftP ne Gold-General Rook!)(shiftP nw Gold-General Rook!)
+         (shiftP e Gold-General Rook!) (shiftP w Gold-General Rook!)
+      )
+   )
+
+(piece
+      (name Silver-General)
+	(notation "S")
+	(help "Silver General: steps 1 square diagonally or straight ahead. Promotes to Vertical Mover.")
+      (description "Silver General\\A Silver General can move one square diagonally or straight ahead. When making a move that begins or ends within the promotion zone (ranks 9 to 12) the Silver General may be promoted to a Vertical Mover.")
+      (image White "images/chu/Silver_W.bmp" "images/chu/JSilver_W.bmp"
+		 Black "images/chu/Silver_B.bmp" "images/chu/JSilver_B.bmp")
+      (attribute promote-rule? true)
+      (moves
+         (shiftP se Silver-General Vertical-Mover!) (shiftP sw Silver-General Vertical-Mover!) 
+         (shiftP ne Silver-General Vertical-Mover!) (shiftP nw Silver-General Vertical-Mover!) 
+         (shiftP n Silver-General Vertical-Mover!)
+      )
+   )
+
+(piece
+      (name Copper-General)
+	(notation "C")
+	(help "Copper General: steps forwards or backwards or diagonally forwards. Promotes to Side Mover.")
+      (description "Copper General\\A Copper General can move one square forwards, backwards or diagonally forwards. When making a move that begins or ends within the promotion zone (ranks 9 to 12) the Copper General may be promoted to a Side Mover.")
+      (image White "images/chu/Copper_W.bmp" "images/chu/JCopper_W.bmp"
+		 Black "images/chu/Copper_B.bmp" "images/chu/JCopper_B.bmp")
+      (attribute promote-rule? true)
+      (moves
+         (shiftP s Copper-General Side-Mover!) (shiftP n Copper-General Side-Mover!) 
+         (shiftP ne Copper-General Side-Mover!) (shiftP nw Copper-General Side-Mover!)
+      )
+   )
+
+(piece
+      (name Tokin)
+	(notation "+P")
+	(help "Tokin: steps 1 square in any direction except diagonally backwards.")
+      (description "Tokin (promoted Pawn)\\A Tokin is a promoted Pawn. It has the same move as the Gold General.  (ie: it can move to any adjacent square except diagonally backwards).")
+      (image White "images/chu/Tokin_W.bmp" "images/chu/JTokin_W.bmp"
+		 Black "images/chu/Tokin_B.bmp" "images/chu/JTokin_B.bmp")
+      (moves
+         (shift s) (shift n) (shift ne) (shift nw)
+         (shift e) (shift w)
+      )
+   )
+
+   (loss-condition (White Black)
+	 (and (pieces-remaining 0 King)(pieces-remaining 0 Crown-Prince)))
+ )
+
+(variant
+   (title "Handicap Game - 3 Lions and 2 pieces")
+   (description "In handicap games of Chu Shogi, the White player is handicapped by a combination of adding, moving and promoting pieces to Black's advantage before the game commences. In handicap games White moves first.\\In the 3 Lion & 2 piece handicap, White's Kylin, Free King and Dragon King on square 8c are removed. The Black Phoenix on 6k is placed on White's 6b square. The White Kylin is placed on Black's 6k and is promoted to Lion. Black's Kylin on 7k is also promoted to Lion. White then gets four minor piece moves in compensation for the two Lion deficit. The moves are Silver Generals to 4b and 9b, Ferocious Leopards to 2b and 11b.")
+   (turn-order White Black)
+   (board-setup
+     (White
+        (Go-Between 9e 4e)
+        (Pawn 1d 2d 3d 4d 5d 6d 7d 8d 9d 10d 11d 12d)
+        (Lance 12a 1a)
+        (Ferocious-Leopard 11b 2b)
+        (Copper-General 9b 4b)
+        (Silver-General 9a 4a)
+        (Gold-General 8a 5a)
+        (King 6a)
+        (Drunk-Elephant 7a)
+        (Reverse-Chariot 12b 1b)
+        (Bishop 10b 3b)
+        (Blind-Tiger 8b 5b)
+        (Phoenix 6b 7b)
+        (Side-Mover 12c 1c)
+        (Vertical-Mover 11c 2c)
+        (Rook 10c 3c)
+        (Dragon-Horse 9c 4c)
+        (Dragon-King 5c)
+        (Lion 6c)
+     )
+     (Black
+        (Go-Between 9h 4h)
+        (Pawn 1i 2i 3i 4i 5i 6i 7i 8i 9i 10i 11i 12i)
+        (Lance 12l 1l)
+        (Ferocious-Leopard 11l 2l)
+        (Copper-General 10l 3l)
+        (Silver-General 9l 4l)
+        (Gold-General 8l 5l)
+        (King 7l)
+        (Drunk-Elephant 6l)
+        (Reverse-Chariot 12k 1k)
+        (Bishop 10k 3k)
+        (Blind-Tiger 8k 5k)
+        (Lion! 6k 7k)
+        (Side-Mover 12j 1j)
+        (Vertical-Mover 11j 2j)
+        (Rook 10j 3j)
+        (Dragon-Horse 9j 4j)
+        (Dragon-King 8j 5j)
+        (Lion 7j)
+        (Free-King 6j)         
+     )
+))
+
+(variant
+   (title "Handicap Game - 3 Lions")
+   (description "In handicap games of Chu Shogi, the White player is handicapped by a combination of adding, moving and promoting pieces to Black's advantage before the game commences. In handicap games White moves first.\\In the 3 Lion handicap, White's Kylin is removed. The Black Phoenix on 6k is placed on White's 6b square. The White Kylin is placed on Black's 6k and is promoted to Lion. Black's Kylin on 7k is also promoted to Lion. White then gets four minor piece moves in compensation for the two Lion deficit. The moves are Copper Generals to 4b and 9b, Ferocious Leopards to 2b and 11b.")
+   (turn-order White Black)
+   (board-setup
+     (White
+        (Go-Between 9e 4e)
+        (Pawn 1d 2d 3d 4d 5d 6d 7d 8d 9d 10d 11d 12d)
+        (Lance 12a 1a)
+        (Ferocious-Leopard 11b 2b)
+        (Copper-General 9b 4b)
+        (Silver-General 9a 4a)
+        (Gold-General 8a 5a)
+        (King 6a)
+        (Drunk-Elephant 7a)
+        (Reverse-Chariot 12b 1b)
+        (Bishop 10b 3b)
+        (Blind-Tiger 8b 5b)
+        (Phoenix 6b 7b)
+        (Side-Mover 12c 1c)
+        (Vertical-Mover 11c 2c)
+        (Rook 10c 3c)
+        (Dragon-Horse 9c 4c)
+        (Dragon-King 8c 5c)
+        (Lion 6c)
+        (Free-King 7c)      
+     )
+     (Black
+        (Go-Between 9h 4h)
+        (Pawn 1i 2i 3i 4i 5i 6i 7i 8i 9i 10i 11i 12i)
+        (Lance 12l 1l)
+        (Ferocious-Leopard 11l 2l)
+        (Copper-General 10l 3l)
+        (Silver-General 9l 4l)
+        (Gold-General 8l 5l)
+        (King 7l)
+        (Drunk-Elephant 6l)
+        (Reverse-Chariot 12k 1k)
+        (Bishop 10k 3k)
+        (Blind-Tiger 8k 5k)
+        (Lion! 6k 7k)
+        (Side-Mover 12j 1j)
+        (Vertical-Mover 11j 2j)
+        (Rook 10j 3j)
+        (Dragon-Horse 9j 4j)
+        (Dragon-King 8j 5j)
+        (Lion 7j)
+        (Free-King 6j)         
+     )
+))
+(variant
+   (title "Handicap Game - 2 Lions")
+   (description "In handicap games of Chu Shogi, the White player is handicapped by a combination of adding, moving and promoting pieces to Black's advantage before the game commences. In handicap games White moves first.\\In the 2 Lion handicap, Black's Kylin on 7k is immediately promoted to Lion.")
+   (turn-order White Black)
+   (board-setup
+     (White
+        (Go-Between 9e 4e)
+        (Pawn 1d 2d 3d 4d 5d 6d 7d 8d 9d 10d 11d 12d)
+        (Lance 12a 1a)
+        (Ferocious-Leopard 11a 2a)
+        (Copper-General 10a 3a)
+        (Silver-General 9a 4a)
+        (Gold-General 8a 5a)
+        (King 6a)
+        (Drunk-Elephant 7a)
+        (Reverse-Chariot 12b 1b)
+        (Bishop 10b 3b)
+        (Blind-Tiger 8b 5b)
+        (Kylin 6b)
+        (Phoenix 7b)
+        (Side-Mover 12c 1c)
+        (Vertical-Mover 11c 2c)
+        (Rook 10c 3c)
+        (Dragon-Horse 9c 4c)
+        (Dragon-King 8c 5c)
+        (Lion 6c)
+        (Free-King 7c)      
+     )
+     (Black
+        (Go-Between 9h 4h)
+        (Pawn 1i 2i 3i 4i 5i 6i 7i 8i 9i 10i 11i 12i)
+        (Lance 12l 1l)
+        (Ferocious-Leopard 11l 2l)
+        (Copper-General 10l 3l)
+        (Silver-General 9l 4l)
+        (Gold-General 8l 5l)
+        (King 7l)
+        (Drunk-Elephant 6l)
+        (Reverse-Chariot 12k 1k)
+        (Bishop 10k 3k)
+        (Blind-Tiger 8k 5k)
+        (Lion! 7k)
+        (Phoenix 6k)
+        (Side-Mover 12j 1j)
+        (Vertical-Mover 11j 2j)
+        (Rook 10j 3j)
+        (Dragon-Horse 9j 4j)
+        (Dragon-King 8j 5j)
+        (Lion 7j)
+        (Free-King 6j)         
+     )
+  )
+)
+(variant
+   (title "Handicap Game - Vertical Mover")
+   (description "In handicap games of Chu Shogi, the White player is handicapped by a combination of adding, moving and promoting pieces to Black's advantage before the game commences. In handicap games White moves first.\\In the Vertical Mover handicap, White's Vertical Mover on square 11c is removed. Square 11c is then 'filled' with the Ferocious Leopard from 11a. White then gets two minor piece moves in compensation for the Vertical Mover deficit. The moves are Copper Generals to 4b and 9b.")
+   (turn-order White Black)
+   (board-setup
+     (White
+        (Go-Between 9e 4e)
+        (Pawn 1d 2d 3d 4d 5d 6d 7d 8d 9d 10d 11d 12d)
+        (Lance 12a 1a)
+        (Ferocious-Leopard 11c 2a)
+        (Copper-General 9b 4b)
+        (Silver-General 9a 4a)
+        (Gold-General 8a 5a)
+        (King 6a)
+        (Drunk-Elephant 7a)
+        (Reverse-Chariot 12b 1b)
+        (Bishop 10b 3b)
+        (Blind-Tiger 8b 5b)
+        (Kylin 6b)
+        (Phoenix 7b)
+        (Side-Mover 12c 1c)
+        (Vertical-Mover 2c)
+        (Rook 10c 3c)
+        (Dragon-Horse 9c 4c)
+        (Dragon-King 8c 5c)
+        (Lion 6c)
+        (Free-King 7c)      
+     )
+     (Black
+        (Go-Between 9h 4h)
+        (Pawn 1i 2i 3i 4i 5i 6i 7i 8i 9i 10i 11i 12i)
+        (Lance 12l 1l)
+        (Ferocious-Leopard 11l 2l)
+        (Copper-General 10l 3l)
+        (Silver-General 9l 4l)
+        (Gold-General 8l 5l)
+        (King 7l)
+        (Drunk-Elephant 6l)
+        (Reverse-Chariot 12k 1k)
+        (Bishop 10k 3k)
+        (Blind-Tiger 8k 5k)
+        (Kylin 7k)
+        (Phoenix 6k)
+        (Side-Mover 12j 1j)
+        (Vertical-Mover 11j 2j)
+        (Rook 10j 3j)
+        (Dragon-Horse 9j 4j)
+        (Dragon-King 8j 5j)
+        (Lion 7j)
+        (Free-King 6j)         
+     )
+  )
+)
+(variant
+   (title "Handicap Game - Copper General")
+   (description "In handicap games of Chu Shogi, the White player is handicapped by a combination of adding, moving and promoting pieces to Black's advantage before the game commences. In handicap games White moves first.\\In the Copper General handicap, White's Copper General on square 10a is removed. White then gets one minor piece move in compensation for the Copper General deficit. The move is Copper General to 4b.")
+   (turn-order White Black)
+   (board-setup
+     (White
+        (Go-Between 9e 4e)
+        (Pawn 1d 2d 3d 4d 5d 6d 7d 8d 9d 10d 11d 12d)
+        (Lance 12a 1a)
+        (Ferocious-Leopard 11a 2a)
+        (Copper-General 4b)
+        (Silver-General 9a 4a)
+        (Gold-General 8a 5a)
+        (King 6a)
+        (Drunk-Elephant 7a)
+        (Reverse-Chariot 12b 1b)
+        (Bishop 10b 3b)
+        (Blind-Tiger 8b 5b)
+        (Kylin 6b)
+        (Phoenix 7b)
+        (Side-Mover 12c 1c)
+        (Vertical-Mover 11c 2c)
+        (Rook 10c 3c)
+        (Dragon-Horse 9c 4c)
+        (Dragon-King 8c 5c)
+        (Lion 6c)
+        (Free-King 7c)      
+     )
+     (Black
+        (Go-Between 9h 4h)
+        (Pawn 1i 2i 3i 4i 5i 6i 7i 8i 9i 10i 11i 12i)
+        (Lance 12l 1l)
+        (Ferocious-Leopard 11l 2l)
+        (Copper-General 10l 3l)
+        (Silver-General 9l 4l)
+        (Gold-General 8l 5l)
+        (King 7l)
+        (Drunk-Elephant 6l)
+        (Reverse-Chariot 12k 1k)
+        (Bishop 10k 3k)
+        (Blind-Tiger 8k 5k)
+        (Kylin 7k)
+        (Phoenix 6k)
+        (Side-Mover 12j 1j)
+        (Vertical-Mover 11j 2j)
+        (Rook 10j 3j)
+        (Dragon-Horse 9j 4j)
+        (Dragon-King 8j 5j)
+        (Lion 7j)
+        (Free-King 6j)         
+     )
+  )
+)
+
+
+    

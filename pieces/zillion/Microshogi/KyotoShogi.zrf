@@ -1,0 +1,486 @@
+; *** Kyoto Shogi
+; *** ZRF by Steve Evans (trout@netspace.net.au) 18/9/99
+; *** Based on the Shogi ZRF by Zillions Development
+
+(define first-empty
+   to-prison
+   (while not-empty? next-prison)
+)
+(define convert-prisoner
+	change-owner
+	(if (flag? bSilver) (change-type Silver))
+	(if (flag? bPawn)   (change-type Pawn))
+	(if (flag? bGold)   (change-type Gold))
+	(if (flag? bTokin)  (change-type Tokin))
+)
+
+(define prisoner-check
+   (if enemy?
+   	      (set-flag bSilver (piece? Bishop))
+		(set-flag bPawn   (piece? Rook))
+		(set-flag bGold   (piece? Knight))
+		(set-flag bTokin  (piece? Lance))
+	cascade
+		mark	
+			(first-empty)
+			to
+			(convert-prisoner)
+		back
+   )
+)
+
+
+(define shift (
+   (verify (in-zone? play-zone))
+   $1
+   (verify not-friend?)
+   (prisoner-check)
+   (change-type $2)
+    add
+))
+
+(define kshift (
+   (verify (in-zone? play-zone))
+   $1
+   (verify not-friend?)
+   (prisoner-check)
+   add
+))
+
+(define slide  (
+   (verify (in-zone? play-zone))
+   $1 (while empty? (add $2) $1)
+   (verify not-friend?)
+   (prisoner-check)
+   (change-type $2)
+    add
+))
+
+(define shift2 (
+   (verify (in-zone? play-zone))
+   $1
+   $2
+   (verify not-friend?)
+   (prisoner-check)
+   (change-type $3)
+   add
+))
+
+(define drop (
+	(verify (not-in-zone? play-zone))
+	to-board
+	(while (on-board? s)
+		mark
+		(while (on-board? e)
+			(if empty? add (add $1))
+			e
+		)
+		(if empty? add (add $1))
+		back
+		s
+	)
+	(while (on-board? e) 
+		(if empty? add (add $1))
+		e
+	)
+	(if empty? add (add $1))
+))
+
+(game (title "Kyoto-Shogi (Japanese Pieces)")
+	(description "Kyoto-Shogi is played on a board of 5 x 5 squares and each player has 5 pieces (including a single pawn).\\The pieces are flat and wedge-shaped and are not distinguished by colour. Although the pieces are of uniform colour the first player is still conventionally referred to as 'Black' and the second player as 'White'. Ownership of the pieces is indicated by the direction in which they face, with a player's pieces always pointing towards the opponent.\\The players make alternate moves, with the object being to checkmate the opposing 'King'.\\ On each turn a player can either:\\    a) move one piece according to its power of movement to a vacant square on the board, or to a square occupied by an enemy piece (in which case the enemy piece is captured and removed); or,\\     b) 'Drop' (re-enter) a previously captured piece on any vacant square (in either of it's two states).\\Unlike in Shogi there are no restrictions on where a Pawn, Knight or Lance can be dropped.\\Every time a piece (other than the King) moves OR makes a capture it is flipped over to its other value. \\\\Zillions implementation by Steve Evans (trout@netspace.net.au) 18/9/99. Some assistance with the graphics (figure piece set) was provided by Juan Antonio (repiso@mx4.redestb.es). Thanks, Juan!")
+	(history "Kyoto-shogi is a recent shogi variant which shares a number of characteristics with the even smaller variant Micro (Poppy) Shogi.\\In Kyoto-shogi the excitement from pieces changing between two forms is even more pronounced than in Micro-shogi as in Kyoto they change form every time they move OR capture (effectively being alternately promoted and then demoted again after every move).")
+    (opening-sound "Audio\\Japan1.wav")
+    (win-sound "Audio\\Japan2.wav")
+    (loss-sound "Audio\\Japan2.wav")
+    (release-sound "Audio\\BongPercussive.wav")
+    (move-sound "Audio\\Bong5th.wav")
+    (capture-sound "Audio\\WoodBells.wav")
+    (players Black White)
+    (turn-order Black White)
+    (pass-turn false)
+	(allow-flipping false)
+	(board
+        (image "images\Kyotoban.bmp")
+        (grid
+            (start-rectangle 113 58 173 113)
+            (dimensions ;5x5
+                ("5/4/3/2/1" (49 0))
+                ("i/ii/iii/iv/v" (0 49))
+            )
+            (directions (n 0 -1) (e 1 0) (s 0 1) (w -1 0)
+			     (ne 1 -1) (nw -1 -1) (se 1 1) (sw -1 1)
+            )
+		)
+		(positions
+			(pw1 30  11 80  60) (pb1 403  11 453  60)
+			(pw2 30  60 80 109) (pb2 403  60 453 109)
+			(pw3 30 109 80 158) (pb3 403 109 453 158)
+			(pw4 30 158 80 207) (pb4 403 158 453 207)
+			(pw5 30 207 80 256) (pb5 403 207 453 256)
+			(pw6 30 256 80 305) (pb6 403 256 453 305)
+			(pw7 30 305 80 354) (pb7 403 305 453 354)
+
+		)
+		(links to-prison
+			(5i pb7) (4i pb7) (3i pb7) (2i pb7) (1i pb7)
+			(5ii pb7) (4ii pb7) (3ii pb7) (2ii pb7) (1ii pb7)
+			(5iii pb7) (4iii pb7) (3iii pb7) (2iii pb7) (1iii pb7)
+			(5iv pb7) (4iv pb7) (3iv pb7) (2iv pb7) (1iv pb7)
+			(5v pb7) (4v pb7) (3v pb7) (2v pb7) (1v pb7)
+ 		)
+
+		(links to-white-prison ; associated with to-prison through symmetry
+			(5i pw1) (4i pw1) (3i pw1) (2i pw1) (1i pw1)
+			(5ii pw1) (4ii pw1) (3ii pw1) (2ii pw1) (1ii pw1)
+			(5iii pw1) (4iii pw1) (3iii pw1) (2iii pw1) (1iii pw1)
+			(5iv pw1) (4iv pw1) (3iv pw1) (2iv pw1) (1iv pw1)
+			(5v pw1) (4v pw1) (3v pw1) (2v pw1) (1v pw1)
+		)
+
+		(links next-prison
+			(pb7 pb6) (pb6 pb5) (pb5 pb4) (pb4 pb3) (pb3 pb2) (pb2 pb1)
+			(pw1 pw2) (pw2 pw3) (pw3 pw4) (pw4 pw5) (pw5 pw6) (pw6 pw7)
+		)
+
+	     (links to-board
+			(pb1 5i) (pb2 5i) (pb3 5i) (pb4 5i) (pb5 5i) (pb6 5i) (pb7 5i)
+			(pw1 1v) (pw2 1v) (pw3 1v) (pw4 1v) (pw5 1v) (pw6 1v) (pw7 1v) 
+		)
+	  (symmetry White (to-prison to-white-prison))
+        (symmetry White (n s)(s n) (nw sw)(sw nw) (ne se)(se ne)(e w)(w e))
+
+	   (zone
+           (name play-zone)
+           (players White Black)
+           (positions
+		  5i 4i 3i 2i 1i
+              5ii 4ii 3ii 2ii 1ii
+              5iii 4iii 3iii 2iii 1iii
+              5iv 4iv 3iv 2iv 1iv
+              5v 4v 3v 2v 1v
+ 		   )
+        )
+    )
+    (board-setup
+        (White (Pawn 1i)
+               (Gold 2i)
+               (King 3i)
+               (Silver 4i)
+               (Tokin 5i)
+        )
+        (Black (Pawn 5v)
+               (Gold 4v)
+               (King 3v)
+               (Silver 2v)
+               (Tokin 1v)
+        )
+    )
+
+    (piece
+		(name Pawn)
+		(image White "images\Pawn_W.bmp" Black "images\Pawn_B.bmp")
+   	    (help "Pawn: steps 1 square straight ahead. Changes to Rook.")
+		(description "Pawn\A Pawn moves a single square forward at a time.  It captures forward, just like it moves.  After moving it changes to a Rook.")
+        (moves
+	         (shift n Rook)
+ 		   (drop Rook)
+        )
+    )
+    (piece
+		(name Tokin)
+		(image White "images\Tokin_W.bmp" Black "images\Tokin_B.bmp")
+ 	    (help "Tokin: steps 1 square in any direction except diagonally backwards. Changes to Lance")
+		(description "Tokin\A Tokin moves in the same way a Gold General does, i.e. a single step in any direction except diagonally backwards. After moving it changes to a Lance.")
+        (moves 
+		(shift nw Lance)(shift n Lance)(shift ne Lance)
+            (shift e Lance)(shift w Lance)(shift s Lance)
+		(drop Lance)
+        )
+    )
+ 
+    (piece
+		(name Silver)
+		(image White "images\Silver_W.bmp" Black "images\Silver_B.bmp")
+   	    (help "Silver: steps 1 square diagonally or straight ahead. Changes to Bishop.")
+        (description "Silver (Silver General)\A Silver moves a single step straight ahead or diagonally. After moving it changes to a Bishop.")
+        (moves
+		(shift nw Bishop)(shift n  Bishop)(shift ne Bishop)
+            (shift sw Bishop)(shift se Bishop)
+ 		(drop Bishop)
+        )
+    )
+    
+    (piece
+		(name Gold)
+		(image White "images\Gold_W.bmp" Black "images\Gold_B.bmp")
+ 	    (help "Gold: steps 1 square in any direction except diagonally backwards. Changes to Knight.")
+        (description "Gold (Gold General)\A Gold moves a single step in any direction except diagonally backwards. After moving it changes to a Knight.")
+		(moves
+		     (shift nw Knight)(shift n Knight)(shift ne Knight) 
+	           (shift e Knight)(shift w Knight)(shift s Knight)
+ 	           (drop Knight)
+        )
+    )
+
+    (piece
+	(name Bishop)
+	(image White "images\Bishop_W.bmp" Black "images\Bishop_B.bmp")
+	(help "Bishop: slides diagonally any number of squares. Changes to Silver.")
+        (description "Bishop\A Bishop moves exactly as in chess or shogi, i.e. any number of squares on a diagonal. It may not leap over other pieces. After moving it changes to a Silver.")
+        (moves
+	     (slide ne Silver)(slide nw Silver)(slide se Silver)(slide sw Silver)
+	     (drop Silver)
+        )
+    )
+        (piece
+       (name Rook)
+       (image White "images\Rook_W.bmp" Black "images\Rook_B.bmp")
+       (help "Rook: slides any number of squares along the row or column. Changes to Pawn.")
+       (description "Rook\A Rook moves exactly as in chess or shogi, i.e. any number of squares on a rank or a file. It may not leap over other pieces. After moving it chnges to a Pawn.")
+       (moves
+	     (slide n Pawn)(slide s Pawn)(slide e Pawn)(slide w Pawn)
+	     (drop Pawn)
+        )
+    )
+    
+	(piece
+		(name Lance)
+		(image White "images\Lance_W.bmp" Black "images\Lance_B.bmp")
+ 	    (help "Lance: slides straight ahead any number of squares. Changes to Tokin.")
+ 		(description "Lance\A Lance moves any number of squares, but only directly forward. After moving it changes to a Tokin.")
+        (moves
+	         (slide n Tokin)
+ 		   (drop Tokin)
+        )
+    )
+    
+    (piece
+		(name Knight)
+		(image White "images\Knight_W.bmp" Black "images\Knight_B.bmp")
+  	      (help "Knight: hops ahead 2 squares and either left or right 1 square. Changes to Gold.")
+		(description "Knight\A Shogi Knight hops over pieces as in Western Chess, but it is limited to forward motion: it leaps forward two squares and over one square to the left or right.  After moving it changes to a Gold.")
+        (moves
+		 (shift2 n nw Gold)(shift2 n ne Gold)
+ 		 (drop Gold)
+        )
+    )
+    
+    (piece
+		(name King)
+		(image White "images\King_W.bmp" Black "images\King_B.bmp")
+		(help "King: steps 1 square in any direction to a safe square.")
+        (description "King\A King can take a single step in any direction, just as in Western Chess. It does not promote. The King may not allow itself to move where it can be taken by the opponent. The object of Kyoto-shogi is to checkmate the enemy King.")
+        (moves
+		(kshift n)(kshift ne)(kshift e)(kshift w)
+            (kshift sw)(kshift se)(kshift s)(kshift nw)
+        )
+    )
+
+    (loss-condition (White Black) (checkmated King) )
+)
+
+(variant (title "Kyoto-Shogi (International Pieces)")
+	(piece
+		(name Pawn)
+		(image White "images\Pawn_IW.bmp" Black "images\Pawn_IB.bmp")
+   	    (help "Pawn: steps 1 square straight ahead. Changes to Rook.")
+		(description "Pawn\A Pawn moves a single square forward at a time.  It captures forward, just like it moves.  After moving it changes to a Rook.")
+        (moves
+	         (shift n Rook)
+ 		   (drop Rook)
+        )
+    )
+    (piece
+		(name Tokin)
+		(image White "images\Tokin_IW.bmp" Black "images\Tokin_IB.bmp")
+ 	    (help "Tokin: steps 1 square in any direction except diagonally backwards. Changes to Lance")
+		(description "Tokin\A Tokin moves in the same way a Gold General does, i.e. a single step in any direction except diagonally backwards. After moving it changes to a Lance.")
+        (moves 
+		(shift nw Lance)(shift n Lance)(shift ne Lance)
+            (shift e Lance)(shift w Lance)(shift s Lance)
+		(drop Lance)
+        )
+    )
+ 
+    (piece
+		(name Silver)
+		(image White "images\Silver_IW.bmp" Black "images\Silver_IB.bmp")
+   	    (help "Silver: steps 1 square diagonally or straight ahead. Changes to Bishop.")
+        (description "Silver (Silver General)\A Silver moves a single step straight ahead or diagonally. After moving it changes to a Bishop.")
+        (moves
+		(shift nw Bishop)(shift n  Bishop)(shift ne Bishop)
+            (shift sw Bishop)(shift se Bishop)
+ 		(drop Bishop)
+        )
+    )
+    
+    (piece
+		(name Gold)
+		(image White "images\Gold_IW.bmp" Black "images\Gold_IB.bmp")
+ 	    (help "Gold: steps 1 square in any direction except diagonally backwards. Changes to Knight.")
+        (description "Gold (Gold General)\A Gold moves a single step in any direction except diagonally backwards. After moving it changes to a Knight.")
+		(moves
+		     (shift nw Knight)(shift n Knight)(shift ne Knight) 
+	           (shift e Knight)(shift w Knight)(shift s Knight)
+ 	           (drop Knight)
+        )
+    )
+
+    (piece
+		(name Bishop)
+	(image White "images\Bishop_IW.bmp" Black "images\Bishop_IB.bmp")
+	(help "Bishop: slides diagonally any number of squares. Changes to Silver.")
+        (description "Bishop\A Bishop moves exactly as in chess or shogi, i.e. any number of squares on a diagonal. It may not leap over other pieces. After moving it changes to a Silver.")
+        (moves
+	     (slide ne Silver)(slide nw Silver)(slide se Silver)(slide sw Silver)
+	     (drop Silver)
+        )
+    )
+      
+  (piece
+       (name Rook)
+       (image White "images\Rook_IW.bmp" Black "images\Rook_IB.bmp")
+       (help "Rook: slides any number of squares along the row or column. Changes to Pawn.")
+       (description "Rook\A Rook moves exactly as in chess or shogi, i.e. any number of squares on a rank or a file. It may not leap over other pieces. After moving it chnges to a Pawn.")
+       (moves
+	     (slide n Pawn)(slide s Pawn)(slide e Pawn)(slide w Pawn)
+	     (drop Pawn)
+        )
+    )
+    
+	(piece
+		(name Lance)
+		(image White "images\Lance_IW.bmp" Black "images\Lance_IB.bmp")
+ 	    (help "Lance: slides straight ahead any number of squares. Changes to Tokin.")
+ 		(description "Lance\A Lance moves any number of squares, but only directly forward. After moving it changes to a Tokin.")
+        (moves
+	         (slide n Tokin)
+ 		   (drop Tokin)
+        )
+    )
+    
+    (piece
+		(name Knight)
+		(image White "images\Knight_IW.bmp" Black "images\Knight_IB.bmp")
+  	      (help "Knight: hops ahead 2 squares and either left or right 1 square. Changes to Gold.")
+		(description "Knight\A Shogi Knight hops over pieces as in Western Chess, but it is limited to forward motion: it leaps forward two squares and over one square to the left or right.  After moving it changes to a Gold.")
+        (moves
+		 (shift2 n nw Gold)(shift2 n ne Gold)
+ 		 (drop Gold)
+        )
+    )
+    
+    (piece
+		(name King)
+		(image White "images\King_IW.bmp" Black "images\King_IB.bmp")
+		(help "King: steps 1 square in any direction to a safe square.")
+        (description "King\A King can take a single step in any direction, just as in Western Chess. It does not promote. The King may not allow itself to move where it can be taken by the opponent. The object of Kyoto-shogi is to checkmate the enemy King.")
+        (moves
+		(kshift n)(kshift ne)(kshift e)(kshift w)
+            (kshift sw)(kshift se)(kshift s)(kshift nw)
+        )
+    )
+)
+
+(variant (title "Kyoto-Shogi (Figure Pieces)")
+	(piece
+		(name Pawn)
+		(image White "images\Pawn_FW.bmp" Black "images\Pawn_FB.bmp")
+   	    (help "Pawn: steps 1 square straight ahead. Changes to Rook.")
+		(description "Pawn\A Pawn moves a single square forward at a time.  It captures forward, just like it moves.  After moving it changes to a Rook.")
+        (moves
+	         (shift n Rook)
+ 		   (drop Rook)
+        )
+    )
+    (piece
+		(name Tokin)
+		(image White "images\Tokin_FW.bmp" Black "images\Tokin_FB.bmp")
+ 	    (help "Tokin: steps 1 square in any direction except diagonally backwards. Changes to Lance")
+		(description "Tokin\A Tokin moves in the same way a Gold General does, i.e. a single step in any direction except diagonally backwards. After moving it changes to a Lance.")
+        (moves 
+		(shift nw Lance)(shift n Lance)(shift ne Lance)
+            (shift e Lance)(shift w Lance)(shift s Lance)
+		(drop Lance)
+        )
+    )
+ 
+    (piece
+		(name Silver)
+		(image White "images\Silver_FW.bmp" Black "images\Silver_FB.bmp")
+   	    (help "Silver: steps 1 square diagonally or straight ahead. Changes to Bishop.")
+        (description "Silver (Silver General)\A Silver moves a single step straight ahead or diagonally. After moving it changes to a Bishop.")
+        (moves
+		(shift nw Bishop)(shift n  Bishop)(shift ne Bishop)
+            (shift sw Bishop)(shift se Bishop)
+ 		(drop Bishop)
+        )
+    )
+    
+    (piece
+		(name Gold)
+		(image White "images\Gold_FW.bmp" Black "images\Gold_FB.bmp")
+ 	    (help "Gold: steps 1 square in any direction except diagonally backwards. Changes to Knight.")
+        (description "Gold (Gold General)\A Gold moves a single step in any direction except diagonally backwards. After moving it changes to a Knight.")
+		(moves
+		     (shift nw Knight)(shift n Knight)(shift ne Knight) 
+	           (shift e Knight)(shift w Knight)(shift s Knight)
+ 	           (drop Knight)
+        )
+    )
+
+    (piece
+		(name Bishop)
+	(image White "images\Bishop_FW.bmp" Black "images\Bishop_FB.bmp")
+	(help "Bishop: slides diagonally any number of squares. Changes to Silver.")
+        (description "Bishop\A Bishop moves exactly as in chess or shogi, i.e. any number of squares on a diagonal. It may not leap over other pieces. After moving it changes to a Silver.")
+        (moves
+	     (slide ne Silver)(slide nw Silver)(slide se Silver)(slide sw Silver)
+	     (drop Silver)
+        )
+    )
+      
+  (piece
+       (name Rook)
+       (image White "images\Rook_FW.bmp" Black "images\Rook_FB.bmp")
+       (help "Rook: slides any number of squares along the row or column. Changes to Pawn.")
+       (description "Rook\A Rook moves exactly as in chess or shogi, i.e. any number of squares on a rank or a file. It may not leap over other pieces. After moving it chnges to a Pawn.")
+       (moves
+	     (slide n Pawn)(slide s Pawn)(slide e Pawn)(slide w Pawn)
+	     (drop Pawn)
+        )
+    )
+    
+	(piece
+		(name Lance)
+		(image White "images\Lance_FW.bmp" Black "images\Lance_FB.bmp")
+ 	    (help "Lance: slides straight ahead any number of squares. Changes to Tokin.")
+ 		(description "Lance\A Lance moves any number of squares, but only directly forward. After moving it changes to a Tokin.")
+        (moves
+	         (slide n Tokin)
+ 		   (drop Tokin)
+        )
+    )
+    
+    (piece
+		(name Knight)
+		(image White "images\Knight_FW.bmp" Black "images\Knight_FB.bmp")
+  	      (help "Knight: hops ahead 2 squares and either left or right 1 square. Changes to Gold.")
+		(description "Knight\A Shogi Knight hops over pieces as in Western Chess, but it is limited to forward motion: it leaps forward two squares and over one square to the left or right.  After moving it changes to a Gold.")
+        (moves
+		 (shift2 n nw Gold)(shift2 n ne Gold)
+ 		 (drop Gold)
+        )
+    )
+    
+    (piece
+		(name King)
+		(image White "images\King_FW.bmp" Black "images\King_FB.bmp")
+		(help "King: steps 1 square in any direction to a safe square.")
+        (description "King\A King can take a single step in any direction, just as in Western Chess. It does not promote. The King may not allow itself to move where it can be taken by the opponent. The object of Kyoto-shogi is to checkmate the enemy King.")
+        (moves
+		(kshift n)(kshift ne)(kshift e)(kshift w)
+            (kshift sw)(kshift se)(kshift s)(kshift nw)
+        )
+    )
+)

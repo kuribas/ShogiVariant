@@ -1,0 +1,37 @@
+
+(define (make-array from type)
+  (let* ((size (length from))
+	 (arr (cons-array size type))
+	 (i 0))
+    (while (< i size)
+      (aset arr i (aref from i))
+      (set! i (+ i 1)))
+    arr))
+
+(define (double-array from) (make-array from 'double))
+
+(define (make-path-array lst)
+  (let* ((size (* (/ (length lst) 2) 9))
+	 (arr (cons-array size 'double))
+	 (orig lst)
+	 (i 0))
+    (define (write lst)
+      (cond ((not (null? lst))
+	     (aset arr i (car lst))
+	     (set! i (+ i 1))
+	     (write (cdr lst)))))
+    (define (write-points x y x2 y2)
+      (write (list x y 1 x y 2 x2 y2 2)))
+    (define (loop lst)
+      (cond ((null? (cddr lst))
+	     (write-points (car lst) (cadr lst) (car orig) (cadr orig)))
+	    (t
+	     (write-points (car lst) (cadr lst) (caddr lst) (nth 3 lst))
+	     (loop (cddr lst)))))
+    (loop lst)
+    arr))
+
+(gimp-path-set-points 0 "newpath 2" 1 27 (make-path-array '(1 3 16 25 27 3)))
+
+(gimp-free-select 0 4 (double-array #(1 1 2 2 1 2 1 3)) 1 0 0 0.0)
+(gimp-bucket-fill 0 0 0 100 0 0 0 0)

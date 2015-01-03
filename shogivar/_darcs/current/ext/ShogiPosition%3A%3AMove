@@ -1,0 +1,68 @@
+= class ShogiPosition::Move
+
+ShogiPosition::Move objects contain information used to update the
+Position.  It is returned either by ShogiPosition::legal_move,
+ShogiPosition::legal_drop or ShogiPosition::parse_move.
+
+== Object Hierarchy
+* Object
+  * ShogiPosition::Move
+
+== Instance Methods
+--- can_promote()
+    Return if the piece is allowed to promote on this move.
+    * returns: A boolean value.
+
+--- can_stay()
+    Return if the piece is allowed to stay (not to promote) on this move.
+    * returns: A boolean value.
+
+--- partial()
+    Return if the piece may do an additional move (only for pieces that can do multiple moves in one turn).
+    * returns: A boolean value.
+    
+--- promote()
+    Return if the piece will promote or not.
+    * returns: true or false
+
+--- promote=(bool)
+    Set if the piece will promote or not
+    * bool: true to promote, false otherwise
+    * returns: bool
+
+--- movetype()
+    The type of move as an integer.  See the constants for possible values.
+    * return: an integer
+
+--- to()
+    The square to move to.  For a drop this means the square where the piece will be dropped.  For a composite move this is the destination square after the first move.
+    * returns: A two element array with the coördinates: [x, y] 
+    
+--- to2()
+    The second square to move to.  This will raise an error if the move is not a composite move.
+    * returns: A two element array with the coördinates: [x, y]
+
+--- to3()
+    The third square to move to.  This will raise an error if the move is not a triple move.
+    * returns: A two element array with the coördinates: [x, y]
+
+--- from()
+    The source square.  This will raise an error if the move is a drop.
+    * returns: A two element array with the coördinates: [x, y]
+
+--- piece()
+    The source piece.  This will raise an error if the move is not a drop.
+    * returns: A string describing the piece.
+
+== Constants
+--- SIMPLE
+    A normal movetype.
+
+--- DROP
+    A dropping move.
+
+--- DOUBLE
+    A composite move with two destination squares.
+
+--- TRIPLE
+    A composite move with three destination squares.

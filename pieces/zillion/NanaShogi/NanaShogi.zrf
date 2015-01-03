@@ -1,0 +1,806 @@
+; *** Nana Shogi
+; *** A Game by Georg Dunkel (c) 1998,1999
+; *** Zrf Implementation (c) Steve Evans 12/9/1999 (trout@netspace.net.au)
+;     (with minor additions by Robert Price)
+; *** Partly based on the Shogi ZRF code by Zillions Development  
+
+(define first-empty
+   to-prison
+   (while not-empty? next-prison)
+)
+(define convert-prisoner
+	change-owner
+	(if (flag? bChariot) (change-type Rook))
+	(if (flag? bSwallow) (change-type Rook))
+	(if (flag? bGo) 	   (change-type Rook))
+	(if (flag? bDog)	 (change-type Bishop))
+	(if (flag? bTile)	 (change-type Bishop))
+	(if (flag? bCat)	 (change-type Bishop))
+)
+(define prisoner-check
+   (if enemy? (set-flag bChariot (piece? Chariot))
+		  (set-flag bSwallow (piece? Swallows-Wings))
+		  (set-flag bGo (piece? Go-Between))
+	        (set-flag bDog (piece? Dog))
+		  (set-flag bTile (piece? Tile-General))
+		  (set-flag bCat (piece? Cat-Sword))
+	 cascade
+		mark	
+			(first-empty)
+			to
+			(convert-prisoner)
+		back
+   )
+)
+
+(define shift(
+  (verify (in-zone? play-zone))
+  $1
+  (verify not-friend?)
+  (prisoner-check)
+  (change-type $2) add 
+  ))
+
+(define kshift(
+   $1
+  (verify not-friend?)
+  (prisoner-check)
+  add 
+))
+
+(define shift2 (
+   (verify (in-zone? play-zone))
+   $1 (while empty? (add $2) $1)
+   (verify not-friend?)
+   (prisoner-check)
+   (change-type $2) add 
+))
+
+; The following allows a piece to jump over an enemy King to
+; capture another enemy King immediately beyond.  This makes
+; attacked? usable when determining that the King is checkmated.
+
+(define slidehack (
+   (verify (in-zone? play-zone))
+   $1 (while empty? $1)
+   (verify (and (piece? King) enemy?))
+   $1
+   (verify (and (piece? King) enemy?))
+   add
+))
+
+(define dropgo ( 
+	(verify (not-in-zone? play-zone))
+	to-board
+	(while (not-in-zone? play-zone) s) 
+	(if empty? 
+		(if (or (not-enemy? s)(not-piece? King s))
+         		(add Go-Between)))
+       s
+	(if empty? 
+	     (if (or (not-enemy? s)(not-piece? King s))
+			(if (or (not-enemy? n) (not-piece? King n))
+				(add Go-Between))))
+       s 
+      (if empty?
+		(if (or (not-enemy? n)(not-piece? King n))
+          	     (add Go-Between)))
+	e
+	(if empty? (add Go-Between))
+	e
+	(if empty?
+		(if (or (not-enemy? n)(not-piece? King n))
+			(add Go-Between)))
+	n
+	(if empty?
+		(if (or (not-enemy? n)(not-piece? King n))
+			(if (or (not-enemy? s) (not-piece? King s))
+				(add Go-Between))))
+	n
+	(if empty?
+		(if (or (not-enemy? s)(not-piece? King s))
+         		(add Go-Between)))
+	w
+	(if empty? (add Go-Between))
+))
+
+(define dropchariot ( 
+	(verify (not-in-zone? play-zone))
+	to-board
+	(while (not-in-zone? play-zone) s) 
+	mark
+      (if empty? 
+		(while (and empty? (on-board? s)) s)
+		(if (or not-enemy? (not-piece? King)) back (add Chariot)))
+	back s 
+      (if empty? 
+		(if (or (not-enemy? n)(not-piece? King n))
+			(if (or (not-enemy? s)(not-piece? King s)) (add Chariot))))
+	s 
+      mark 
+	(if empty? 
+		(while (and empty? (on-board? n)) n)
+		(if (or not-enemy? (not-piece? King)) back (add Chariot)))
+	back e
+      mark 
+	(if empty? 
+		(while (and empty? (on-board? n)) n)
+		(if (or not-enemy? (not-piece? King)) back (add Chariot)))
+	back e 
+	mark
+	(if empty? 
+		(while (and empty? (on-board? n)) n)
+		(if (or not-enemy? (not-piece? King)) back (add Chariot)))
+	back n 
+      (if empty?
+		(if (or (not-enemy? n)(not-piece? King n))
+			(if (or (not-enemy? s) (not-piece? King s)) (add Chariot))))
+	n 
+      mark 
+	(if empty? 
+		(while (and empty? (on-board? s)) s)
+		(if (or not-enemy? (not-piece? King)) back (add Chariot)))
+	back w 
+      mark
+	(if empty? 
+		(while (and empty? (on-board? s)) s)
+		(if (or not-enemy? (not-piece? King)) back (add Chariot)))
+))
+
+(define dropswallow ( 
+	(verify (not-in-zone? play-zone))
+	to-board
+	(while (not-in-zone? play-zone) s) 
+	mark
+      (if empty? 
+		(if (or (not-enemy? s)(not-piece? King s))
+			(while (and empty? (on-board? e)) e)
+			(if (or not-enemy? (not-piece? King)) back (add Swallows-Wings))))
+	back s 
+	mark
+      (if empty? 
+		(if (or (not-enemy? n)(not-piece? King n))
+			(if (or (not-enemy? s)(not-piece? King s)) 
+				(while (and empty? (on-board? e)) e)
+				(if (or not-enemy? (not-piece? King)) back (add Swallows-Wings)))))
+	back s 
+      mark 
+	(if empty? 
+		(if (or (not-enemy? n)(not-piece? King n))
+			(while (and empty? (on-board? e)) e)
+			(if (or not-enemy? (not-piece? King)) back (add Swallows-Wings))))
+	back e
+      (if empty?
+		(if (or (not-enemy? n)(not-piece? King n))
+			(if (or (not-enemy? e) (not-piece? King e))
+					(if (or (not-enemy? w) (not-piece? King w)) (add Swallows-Wings)))))
+	e 
+	mark
+	(if empty? 
+		(if (or (not-enemy? n)(not-piece? King n))
+			(while (and empty? (on-board? w)) w)
+			(if (or not-enemy? (not-piece? King)) back (add Swallows-Wings))))
+	back n 
+	mark
+      (if empty? 
+		(if (or (not-enemy? n)(not-piece? King n))
+			(if (or (not-enemy? s)(not-piece? King s)) 
+				(while (and empty? (on-board? e)) e)
+				(if (or not-enemy? (not-piece? King)) back (add Swallows-Wings)))))
+	back n 
+      mark 
+	(if empty? 
+		(if (or (not-enemy? s)(not-piece? King s))
+			(while (and empty? (on-board? w)) w)
+			(if (or not-enemy? (not-piece? King)) back (add Swallows-Wings))))
+	back w 
+     (if empty?
+		(if (or (not-enemy? s)(not-piece? King s))
+			(if (or (not-enemy? e) (not-piece? King e))
+					(if (or (not-enemy? w) (not-piece? King w)) (add Swallows-Wings)))))
+))
+
+(define droprook ( 
+	(verify (not-in-zone? play-zone))
+	to-board
+	(while (not-in-zone? play-zone) s) 
+	mark
+      (if empty? 
+		(while (and empty? (on-board? e)) e)
+		(if (or not-enemy? (not-piece? King)) back 
+			(while (and empty? (on-board? s)) s)
+			(if (or not-enemy? (not-piece? King)) back (add Rook))))
+	back s 
+	mark
+      (if empty? 
+		(if (or (not-enemy? n)(not-piece? King n))
+			(if (or (not-enemy? s)(not-piece? King s)) 
+				(while (and empty? (on-board? e)) e)
+				(if (or not-enemy? (not-piece? King)) back (add Rook)))))
+	back s 
+      mark 
+	(if empty? 
+		(while (and empty? (on-board? e)) e)
+		(if (or not-enemy? (not-piece? King)) back 
+			(while (and empty? (on-board? n)) n)
+			(if (or not-enemy? (not-piece? King)) back (add Rook))))
+	back e
+	mark
+      (if empty?
+		(if (or (not-enemy? e) (not-piece? King e))
+			(if (or (not-enemy? w) (not-piece? King w))
+			 	(while (and empty? (on-board? n)) n)
+				(if (or not-enemy? (not-piece? King)) back (add Rook)))))
+	back e 
+	mark
+	(if empty? 
+		(while (and empty? (on-board? n)) n)
+		(if (or not-enemy? (not-piece? King)) back 
+			(while (and empty? (on-board? w)) w)
+			(if (or not-enemy? (not-piece? King)) back (add Rook))))
+	back n 
+	mark
+      (if empty? 
+		(if (or (not-enemy? n)(not-piece? King n))
+			(if (or (not-enemy? s)(not-piece? King s)) 
+				(while (and empty? (on-board? e)) e)
+				(if (or not-enemy? (not-piece? King)) back (add Rook)))))
+	back n 
+      mark 
+	(if empty? 
+		(while (and empty? (on-board? w)) w)
+		(if (or not-enemy? (not-piece? King)) back 
+			(while (and empty? (on-board? s)) s)
+			(if (or not-enemy? (not-piece? King)) back (add Rook))))
+	back w
+	mark 
+     (if empty?
+		(if (or (not-enemy? e) (not-piece? King e))
+			(if (or (not-enemy? w) (not-piece? King w))
+			 	(while (and empty? (on-board? s)) s)
+				(if (or not-enemy? (not-piece? King)) back (add Rook)))))
+))
+
+
+(define dropbishop ( 
+	(verify (not-in-zone? play-zone))
+	to-board
+	(while (not-in-zone? play-zone) s) 
+	mark
+      (if empty? 
+		(while (and empty? (on-board? se)) se)
+		(if (or not-enemy? (not-piece? King)) back (add Bishop)))
+	back s 
+      (if empty? 
+		(if (or (not-enemy? ne)(not-piece? King ne))
+			(if (or (not-enemy? se)(not-piece? King se)) (add Bishop))))
+	s 
+      mark 
+	(if empty? 
+		(while (and empty? (on-board? ne)) ne)
+		(if (or not-enemy? (not-piece? King)) back (add Bishop)))
+	back e
+      (if empty? 
+		(if (or (not-enemy? ne)(not-piece? King ne))
+			(if (or (not-enemy? nw)(not-piece? King nw)) (add Bishop))))
+	e 
+	mark
+	(if empty? 
+		(while (and empty? (on-board? nw)) nw)
+		(if (or not-enemy? (not-piece? King)) back (add Bishop)))
+	back n 
+      (if empty?
+		(if (or (not-enemy? nw)(not-piece? King nw))
+			(if (or (not-enemy? sw) (not-piece? King sw)) (add Bishop))))
+	n 
+      mark 
+	(if empty? 
+		(while (and empty? (on-board? sw)) sw)
+		(if (or not-enemy? (not-piece? King)) back (add Bishop)))
+	back w 
+      (if empty?
+		(if (or (not-enemy? sw)(not-piece? King sw))
+			(if (or (not-enemy? se) (not-piece? King se)) (add Bishop))))
+))
+
+(define dropking ( 
+	(verify (not-in-zone? play-zone))
+	to-board
+	(while (not-in-zone? play-zone) s) 
+	(if empty? add ) s
+	(if empty? add ) s 
+      (if empty? add ) e
+	(if empty? add ) e
+	(if empty? add ) n
+	(if empty? add ) n
+	(if empty? add ) w
+	(if empty? add )))
+
+(define dropcat ( 
+	(verify (not-in-zone? play-zone))
+	to-board
+	(while (not-in-zone? play-zone) s) 
+	(if empty? (add Cat-Sword))
+       s
+	(if empty? 
+	     (if (or (not-enemy? ne)(not-piece? King ne))
+			(if (or (not-enemy? se) (not-piece? King se))
+				(add Cat-Sword))))
+       s 
+      (if empty? (add Cat-Sword))
+	 e
+	(if empty? 
+	     (if (or (not-enemy? ne)(not-piece? King ne))
+			(if (or (not-enemy? nw) (not-piece? King nw))
+				(add Cat-Sword))))
+	e
+	(if empty? (add Cat-Sword))
+	n
+	(if empty?
+		(if (or (not-enemy? nw)(not-piece? King nw))
+			(if (or (not-enemy? sw) (not-piece? King sw))
+				(add Cat-Sword))))
+	n
+	(if empty? (add Cat-Sword))
+	w
+	(if empty?
+		(if (or (not-enemy? sw)(not-piece? King sw))
+			(if (or (not-enemy? se) (not-piece? King se))
+				(add Cat-Sword))))
+))
+
+(define dropdog ( 
+	(verify (not-in-zone? play-zone))
+	to-board
+	(while (not-in-zone? play-zone) s) 
+	(if empty? (add Dog))
+       s
+	(if empty? 
+	     (if (or (not-enemy? n)(not-piece? King n))
+			(if (or (not-enemy? se) (not-piece? King se))
+				(add Dog))))
+       s 
+      (if empty? 
+	     (if (or (not-enemy? n)(not-piece? King n))(add Dog)))
+	 e
+	(if empty? (add Dog))
+	e
+	 (if empty? 
+	     (if (or (not-enemy? n)(not-piece? King n))(add Dog)))
+	n
+	(if empty?
+		(if (or (not-enemy? n)(not-piece? King n))
+			(if (or (not-enemy? sw) (not-piece? King sw))
+				(add Dog))))
+	n
+	(if empty? (add Dog))
+	w
+	(if empty?
+		(if (or (not-enemy? sw)(not-piece? King sw))
+			(if (or (not-enemy? se) (not-piece? King se))
+				(add Dog))))
+))
+
+(define droptile ( 
+	(verify (not-in-zone? play-zone))
+	to-board
+	(while (not-in-zone? play-zone) s) 
+	(if empty? 
+	     (if (or (not-enemy? s)(not-piece? King s))(add Tile-General)))
+       s
+	(if empty? 
+	     (if (or (not-enemy? s)(not-piece? King s))
+			(if (or (not-enemy? ne) (not-piece? King ne))
+				(add Tile-General))))
+       s 
+      (if empty? (add Tile-General))
+	 e
+	(if empty?
+		(if (or (not-enemy? ne)(not-piece? King ne))
+			(if (or (not-enemy? nw) (not-piece? King nw))
+				(add Tile-General))))
+	e
+	 (if empty? (add Tile-General))
+	n
+	(if empty?
+		(if (or (not-enemy? s)(not-piece? King s))
+			(if (or (not-enemy? nw) (not-piece? King nw))
+				(add Tile-General))))
+	n
+	(if empty? 
+	     (if (or (not-enemy? s)(not-piece? King s))(add Tile-General)))
+	w
+	(if empty? (add Tile-General))
+))
+
+(define king-dies
+  (if (on-board? $1) (verify (or (friend? $1) (attacked? $1)))))
+
+(game
+    (title "Nana-Shogi")
+	(description "Object: Checkmate your opponent's King\\
+	     Right-click on the pieces to see how they move.\ The following is based on Georg Dunkel's description of the game from his web pages.\Nana Shogi is played on a 3x3 board. Each player has three cube shaped pieces, one conventional king and two pieces with four values each.\One piece has the values: Rook, Chariot, Swallow's Wings and Go-between.\The other piece has the values: Bishop, Tile General, Cat's Sword and Dog.\ These pieces are taken from Shogi (Rook & Bishop), Chu Shogi (Chariot, Go-Between), Dai Shogi (Cat's Sword), Maka-Dai-Dai Shogi (Tile General) Wa Shogi (Swallow's Wings) and Tenjiku Shogi (Dog).\\ At the commencement of the game the board is empty. Play begins with each player in turn (starting with black) dropping their king.\Players may then choose at their turn either to drop a piece or to move a piece on the board.\Pieces (other than the King obviously) may be dropped in whichever value state the player chooses.\When a piece other than a King moves on the board, either with or without capturing, that piece's value changes. Values change sequentially; Rook to Chariot to Swallow's Wings to Go-between to Rook, etc and Bishop to Tile General to Cat's Sword to Dog to Bishop, etc.\It is illegal to drop any piece on the central square and it is illegal to check or to checkmate by dropping a piece.\Under George Dunkel's rules it is also illegal to checkmate when one has one or more pieces in hand. This last rule is implemented indirectly:  When the King is otherwise checkmated, it can jump over to the enemy prison and make a capture; and having one's King in the enemy prison is a win-condition.")
+	(history "Nana-Shogi was invented by Georg Dunkel in 1998,1999. It is perhaps the smallest non-trivial chess variant in existence. This ZRF implementation is by Steve Evans. The empty-prison checkmate rule was added by Robert Price.")
+    (opening-sound "Audio\\Japan1.wav")
+    (win-sound "Audio\\Japan2.wav")
+    (loss-sound "Audio\\Japan2.wav")
+    (release-sound "Audio\\BongPercussive.wav")
+    (move-sound "Audio\\Bong5th.wav")
+    (capture-sound "Audio\\WoodBells.wav")
+    (players Black White)
+    (turn-order Black White)
+    (pass-turn false)
+    (move-priorities kingdrop no-king)
+    (allow-flipping false)
+	(board
+        (image "images\NanaShogi\Nanabrd.bmp")
+        (grid
+            (start-rectangle 87 50 137 100)
+            (dimensions ;3x3
+                ("3/2/1" (49 0))
+                ("i/ii/iii" (0 49))
+            )
+            (directions (n 0 -1) (e 1 0) (s 0 1) (w -1 0)
+			     (ne 1 -1) (nw -1 -1) (se 1 1) (sw -1 1)
+            ))	
+		(positions
+			(pw1 18  25 67  74) (pb1 254  25 304  74)
+			(pw2 18  74 67 123) (pb2 254  74 304 123)
+			(pw3 18 123 67 172) (pb3 254 123 304 172)
+			(pw4 18 172 67 221) (pb4 254 172 304 221)
+		)
+		(links to-prison
+			(3i pb4) (2i pb4) (1i pb4)
+		      (3ii pb4) (2ii pb4) (1ii pb4)
+			(3iii pb4) (2iii pb4) (1iii pb4)
+		)
+		(links to-white-prison 
+			(3i pw1) (2i pw1) (1i pw1)
+			(3ii pw1) (2ii pw1) (1ii pw1)
+			(3iii pw1) (2iii pw1) (1iii pw1)
+		)
+		(links next-prison
+			(pb4 pb3) (pb3 pb2) (pb2 pb1)
+			(pw1 pw2) (pw2 pw3) (pw3 pw4) 
+		)
+		(links to-board
+			(pb1 3i) (pb2 3i) (pb3 3i) (pb4 3i) 
+			(pw1 1iii) (pw2 1iii) (pw3 1iii) (pw4 1iii)
+		)
+		(symmetry White (to-prison to-white-prison))
+            (symmetry White (n s)(s n) (nw se)(sw ne) (ne sw)(se nw)(e w)(w e))
+        (zone
+            (name play-zone)
+            (players White Black)
+            (positions
+		  3i 2i 1i
+              3ii 2ii 1ii
+              3iii 2iii 1iii
+            )
+        )
+       (zone
+           (name prison-zone)
+           (players Black)
+           (positions pb1 pb2 pb3 pb4)
+        )
+       (zone
+           (name prison-zone)
+           (players White)
+           (positions pw1 pw2 pw3 pw4)
+        )
+       (zone
+           (name enemy-prison-zone)
+           (players White)
+           (positions pb1 pb2 pb3 pb4)
+        )
+       (zone
+           (name enemy-prison-zone)
+           (players Black)
+           (positions pw1 pw2 pw3 pw4)
+        )
+	
+     )
+    (board-setup
+        (White (King pw1)
+               (Rook pw2)
+               (Bishop pw3)
+        )
+        (Black (King pb1)
+		   (Rook pb2)
+               (Bishop pb3)
+         )
+    )
+
+    (piece
+		(name Cat-Sword)
+		(image White "images\NanaShogi\Cat_W.bmp" Black "images\NanaShogi\Cat_B.bmp")
+   	    (help "Cat Sword: Steps 1 square in any diagonal direction. Changes to Dog.")
+		(description "Cat Sword\A Cat Sword moves a single square in any diagonal direction. On moving it changes to a Dog. After capture it may be dropped back into play as any of the following; Cat Sword, Dog, Tile General or Bishop.")
+        (moves
+		   (move-type no-king)
+           (shift ne Dog)(shift nw Dog)(shift se Dog)(shift sw Dog)
+ 		  (dropcat)(dropdog)(droptile)(dropbishop)
+        )
+    )
+    (piece
+		(name Chariot)
+		(image White "images\NanaShogi\Chariot_W.bmp" 
+			 Black "images\NanaShogi\Chariot_B.bmp")
+ 	    (help "Chariot: moves 1 or 2 squares straight forwards or backwards. Changes to Swallow's Wings.")
+		(description "Chariot\A moves any number of squares straight forward or backwards. On moving it changes to the Swallow's Wings. After capture it may be dropped back into play as any of the following; Chariot, Swallaw's Wings, Go-Between or Rook.")
+        (moves ; like a Gold General
+		    (move-type no-king)
+            (shift n Swallows-Wings)(shift2 n Swallows-Wings)(slidehack n)
+            (shift s Swallows-Wings)(shift2 s Swallows-Wings)(slidehack s)
+            (dropgo)(dropchariot)(dropswallow)(droprook)
+        )
+    )
+ 
+    (piece
+		(name Go-Between)
+		(image White "images\NanaShogi\Go-Between_W.bmp" 
+			 Black "images\NanaShogi\Go-Between_B.bmp")
+   	    (help "Go-Between: steps 1 square straight forwards or backwards. Changes to Rook.")
+        (description "Go-Between\A Go-Between moves a single step straight ahead or straight backwards. On moving it changes into a Rook. After capture it may be dropped back into play as any of the following; Chariot, Swallow's Wings, Go-Between or Rook.")
+        (moves
+		(move-type no-king)
+            (shift n Rook)
+            (shift s Rook)
+            (dropgo)(dropchariot)(dropswallow)(droprook)
+        )
+    )
+    (piece
+		(name Dog)
+		(image White "images\NanaShogi\Dog_W.bmp" Black "images\NanaShogi\Dog_B.bmp")
+ 	    (help "Dog: steps 1 square straight forwards or diagonal backwards. Changes to Bishop.")
+        (description "Dog\A Dog moves either 1 square straight forwards or 1 square diagonally backwards. On moving it changes into a Bishop. After capture it may be dropped back into play as any of the following; Cat Sword, Dog, Tile General or Bishop.")
+		(moves
+		(move-type no-king)
+            (shift n Bishop)
+            (shift se Bishop)
+            (shift sw Bishop)
+            (dropcat)(dropdog)(droptile)(dropbishop)
+        )
+    )
+
+    (piece
+		(name Tile-General)
+		(image White "images\NanaShogi\Tile_W.bmp" Black "images\NanaShogi\Tile_B.bmp")
+ 	    (help "Tile General: steps 1 square straight backwards or diagonally forwards. Changes to Cat Sword.")
+        (description "Tile General\A Tile General moves a single step either straight backwards or diagonally forward. On moving it changes into a Cat Sword. After capture it may be dropped back into play as any of the following; Cat Sword, Dog, Tile General or Bishop.")
+		(moves
+		(move-type no-king)
+            (shift s Cat-Sword)
+            (shift ne Cat-Sword)
+            (shift nw Cat-Sword)
+            (dropcat)(dropdog)(droptile)(dropbishop)
+        )
+    )
+
+    (piece
+		(name Bishop)
+		(image White "images\NanaShogi\Bishop_W.bmp" 
+	       	 Black "images\NanaShogi\Bishop_B.bmp")
+	    (help "Bishop: slides diagonally 1 or 2 squares. Changes to Tile General.")
+        (description "Bishop\A Bishop moves any number of squares on a diagonal. It may not leap over other pieces.  On moving it changes into a Tile General. After capture it may be dropped back into play as any of the following; Cat Sword, Dog, Tile General or Bishop.")
+        (moves
+	     (move-type no-king)
+           (shift2 ne Tile-General)(slidehack ne)
+           (shift2 nw Tile-General)(slidehack nw)
+           (shift2 se Tile-General)(slidehack se)
+           (shift2 sw Tile-General)(slidehack sw)
+	     (dropcat)(dropdog)(droptile)(dropbishop)
+        )
+    )
+    (piece
+		(name Swallows-Wings)
+ 		(image White "images\NanaShogi\Swallow_W.bmp" 
+			 Black "images\NanaShogi\Swallow_B.bmp")
+        (help "Swallow's Wings: steps 1 or 2 squares horizontally or 1 square vertically. Changes to Go-Between.")
+        (description "Swallow's Wings\Moves 1 or 2 squares horizontally or 1 square straight ahead or backwards. It may not leap over other pieces. On moving it changes into a Rook. After capture it may be dropped back into play by the capturing player as any of the following; Chariot, Swallow's Wings, Go-Between or Rook.")
+        (moves
+	     (move-type no-king)
+           (shift2 e Go-Between)(slidehack e)
+           (shift2 w Go-Between)(slidehack w)
+           (shift n Go-Between)
+           (shift s Go-Between)
+           (dropgo)(dropchariot)(dropswallow)(droprook)
+        )
+    )
+
+    (piece
+       (name Rook)
+       (image White "images\NanaShogi\Rook_W.bmp" Black "images\NanaShogi\Rook_B.bmp")
+       (help "Rook: slides 1 or 2 squares orthogonally. Changes to Chariot.")
+       (description "Rook\A Rook moves any number of squares along a rank or file. On moving it changes into a Chariot. After capture it may be dropped back into play by the capturing player as any of the following; Chariot, Swallow's Wings, Go-Between or Rook.")
+       (moves
+	     (move-type no-king)
+           (shift2 n Chariot)(slidehack n)
+           (shift2 s Chariot)(slidehack s)
+           (shift2 e Chariot)(slidehack e)
+           (shift2 w Chariot)(slidehack w)
+	     (dropchariot)(dropgo)(dropswallow)(droprook)
+        )
+    )
+    (piece
+		(name King)
+		(image White "images\NanaShogi\King_W.bmp" Black "images\NanaShogi\King_B.bmp")
+		(help "King: steps 1 square in any direction to a safe square.")
+        (description "King\A King can take a single step in any direction, just as in Western Chess. It does not change form. The King may not allow itself to move where it can be taken by the opponent (it therefore can never occupy the central square).  The object of Nana-Shogi is to checkmate the enemy King.")
+        (moves
+		(move-type no-king)
+            (kshift nw)(kshift n)(kshift ne)(kshift e)
+            (kshift w)(kshift sw)(kshift se)(kshift s)
+            ((verify attacked?)
+             (king-dies n)
+             (king-dies e)
+             (king-dies s)
+             (king-dies w)
+             (king-dies ne)
+             (king-dies nw)
+             (king-dies se)
+             (king-dies sw)
+             pb1 (if enemy? add)
+             pb2 (if enemy? add)
+             pb3 (if enemy? add)
+             pb4 (if enemy? add)
+             pw1 (if enemy? add)
+             pw2 (if enemy? add)
+             pw3 (if enemy? add)
+             pw4 (if enemy? add))
+
+		(move-type kingdrop)
+		(dropking)
+        )
+    )
+    (loss-condition (White Black) (checkmated King) )
+    (win-condition (White Black) (absolute-config King (enemy-prison-zone)))
+)
+
+;;;
+;;; The following variant is the one without the empty-prison checkmate rule,
+;;; as originally implemented by Steve Evans.
+
+(variant
+  (title "No empty-prison rule")
+
+	(description "Object: Checkmate your opponent's King\\
+	     Right-click on the pieces to see how they move.\ The following is based on Georg Dunkel's description of the game from his web pages.\Nana Shogi is played on a 3x3 board. Each player has three cube shaped pieces, one conventional king and two pieces with four values each.\One piece has the values: Rook, Chariot, Swallow's Wings and Go-between.\The other piece has the values: Bishop, Tile General, Cat's Sword and Dog.\ These pieces are taken from Shogi (Rook & Bishop), Chu Shogi (Chariot, Go-Between), Dai Shogi (Cat's Sword), Maka-Dai-Dai Shogi (Tile General) Wa Shogi (Swallow's Wings) and Tenjiku Shogi (Dog).\\ At the commencement of the game the board is empty. Play begins with each player in turn (starting with black) dropping their king.\Players may then choose at their turn either to drop a piece or to move a piece on the board.\Pieces (other than the King obviously) may be dropped in whichever value state the player chooses.\When a piece other than a King moves on the board, either with or without capturing, that piece's value changes. Values change sequentially; Rook to Chariot to Swallow's Wings to Go-between to Rook, etc and Bishop to Tile General to Cat's Sword to Dog to Bishop, etc.\It is illegal to drop any piece on the central square and it is illegal to check or to checkmate by dropping a piece.\Under George Dunkel's rules it is also illegal to checkmate when one has one or more pieces in hand. This last rule has yet to be implemented in this program.")
+	(history "Nana-Shogi was invented by Georg Dunkel in 1998,1999. It is perhaps the smallest non-trivial chess variant in existence. This ZRF implementation is by Steve Evans.")
+    (opening-sound "Audio\\Japan1.wav")
+    (win-sound "Audio\\Japan2.wav")
+    (loss-sound "Audio\\Japan2.wav")
+    (release-sound "Audio\\BongPercussive.wav")
+    (move-sound "Audio\\Bong5th.wav")
+    (capture-sound "Audio\\WoodBells.wav")
+    (players Black White)
+    (turn-order Black White)
+    (pass-turn false)
+    (move-priorities kingdrop no-king)
+    (piece
+		(name Cat-Sword)
+		(image White "images\NanaShogi\Cat_W.bmp" Black "images\NanaShogi\Cat_B.bmp")
+   	    (help "Cat Sword: Steps 1 square in any diagonal direction. Changes to Dog.")
+		(description "Cat Sword\A Cat Sword moves a single square in any diagonal direction. On moving it changes to a Dog. After capture it may be dropped back into play as any of the following; Cat Sword, Dog, Tile General or Bishop.")
+        (moves
+		   (move-type no-king)
+           (shift ne Dog)(shift nw Dog)(shift se Dog)(shift sw Dog)
+ 		  (dropcat)(dropdog)(droptile)(dropbishop)
+        )
+    )
+    (piece
+		(name Chariot)
+		(image White "images\NanaShogi\Chariot_W.bmp" 
+			 Black "images\NanaShogi\Chariot_B.bmp")
+ 	    (help "Chariot: moves 1 or 2 squares straight forwards or backwards. Changes to Swallow's Wings.")
+		(description "Chariot\A moves any number of squares straight forward or backwards. On moving it changes to the Swallow's Wings. After capture it may be dropped back into play as any of the following; Chariot, Swallaw's Wings, Go-Between or Rook.")
+        (moves ; like a Gold General
+		    (move-type no-king)
+            (shift n Swallows-Wings)(shift2 n Swallows-Wings)
+            (shift s Swallows-Wings)(shift2 s Swallows-Wings)
+            (dropgo)(dropchariot)(dropswallow)(droprook)
+        )
+    )
+ 
+    (piece
+		(name Go-Between)
+		(image White "images\NanaShogi\Go-Between_W.bmp" 
+			 Black "images\NanaShogi\Go-Between_B.bmp")
+   	    (help "Go-Between: steps 1 square straight forwards or backwards. Changes to Rook.")
+        (description "Go-Between\A Go-Between moves a single step straight ahead or straight backwards. On moving it changes into a Rook. After capture it may be dropped back into play as any of the following; Chariot, Swallow's Wings, Go-Between or Rook.")
+        (moves
+		(move-type no-king)
+            (shift n Rook)
+            (shift s Rook)
+            (dropgo)(dropchariot)(dropswallow)(droprook)
+        )
+    )
+    (piece
+		(name Dog)
+		(image White "images\NanaShogi\Dog_W.bmp" Black "images\NanaShogi\Dog_B.bmp")
+ 	    (help "Dog: steps 1 square straight forwards or diagonal backwards. Changes to Bishop.")
+        (description "Dog\A Dog moves either 1 square straight forwards or 1 square diagonally backwards. On moving it changes into a Bishop. After capture it may be dropped back into play as any of the following; Cat Sword, Dog, Tile General or Bishop.")
+		(moves
+		(move-type no-king)
+            (shift n Bishop)
+            (shift se Bishop)
+            (shift sw Bishop)
+            (dropcat)(dropdog)(droptile)(dropbishop)
+        )
+    )
+
+    (piece
+		(name Tile-General)
+		(image White "images\NanaShogi\Tile_W.bmp" Black "images\NanaShogi\Tile_B.bmp")
+ 	    (help "Tile General: steps 1 square straight backwards or diagonally forwards. Changes to Cat Sword.")
+        (description "Tile General\A Tile General moves a single step either straight backwards or diagonally forward. On moving it changes into a Cat Sword. After capture it may be dropped back into play as any of the following; Cat Sword, Dog, Tile General or Bishop.")
+		(moves
+		(move-type no-king)
+            (shift s Cat-Sword)
+            (shift ne Cat-Sword)
+            (shift nw Cat-Sword)
+            (dropcat)(dropdog)(droptile)(dropbishop)
+        )
+    )
+
+    (piece
+		(name Bishop)
+		(image White "images\NanaShogi\Bishop_W.bmp" 
+	       	 Black "images\NanaShogi\Bishop_B.bmp")
+	    (help "Bishop: slides diagonally 1 or 2 squares. Changes to Tile General.")
+        (description "Bishop\A Bishop moves any number of squares on a diagonal. It may not leap over other pieces.  On moving it changes into a Tile General. After capture it may be dropped back into play as any of the following; Cat Sword, Dog, Tile General or Bishop.")
+        (moves
+	     (move-type no-king)
+           (shift2 ne Tile-General)
+           (shift2 nw Tile-General)
+           (shift2 se Tile-General)
+           (shift2 sw Tile-General)
+	     (dropcat)(dropdog)(droptile)(dropbishop)
+        )
+    )
+    (piece
+		(name Swallows-Wings)
+ 		(image White "images\NanaShogi\Swallow_W.bmp" 
+			 Black "images\NanaShogi\Swallow_B.bmp")
+        (help "Swallow's Wings: steps 1 or 2 squares horizontally or 1 square vertically. Changes to Go-Between.")
+        (description "Swallow's Wings\Moves 1 or 2 squares horizontally or 1 square straight ahead or backwards. It may not leap over other pieces. On moving it changes into a Rook. After capture it may be dropped back into play by the capturing player as any of the following; Chariot, Swallow's Wings, Go-Between or Rook.")
+        (moves
+	     (move-type no-king)
+           (shift2 e Go-Between)
+           (shift2 w Go-Between)
+           (shift n Go-Between)
+           (shift s Go-Between)
+           (dropgo)(dropchariot)(dropswallow)(droprook)
+        )
+    )
+
+    (piece
+       (name Rook)
+       (image White "images\NanaShogi\Rook_W.bmp" Black "images\NanaShogi\Rook_B.bmp")
+       (help "Rook: slides 1 or 2 squares orthogonally. Changes to Chariot.")
+       (description "Rook\A Rook moves any number of squares along a rank or file. On moving it changes into a Chariot. After capture it may be dropped back into play by the capturing player as any of the following; Chariot, Swallow's Wings, Go-Between or Rook.")
+       (moves
+	     (move-type no-king)
+           (shift2 n Chariot)
+           (shift2 s Chariot)
+           (shift2 e Chariot)
+           (shift2 w Chariot)
+	     (dropchariot)(dropgo)(dropswallow)(droprook)
+        )
+    )
+    (piece
+		(name King)
+		(image White "images\NanaShogi\King_W.bmp" Black "images\NanaShogi\King_B.bmp")
+		(help "King: steps 1 square in any direction to a safe square.")
+        (description "King\A King can take a single step in any direction, just as in Western Chess. It does not change form. The King may not allow itself to move where it can be taken by the opponent (it therefore can never occupy the central square).  The object of Nana-Shogi is to checkmate the enemy King.")
+        (moves
+		(move-type no-king)
+            (kshift nw)(kshift n)(kshift ne)(kshift e)
+            (kshift w)(kshift sw)(kshift se)(kshift s)
+		
+		(move-type kingdrop)
+		(dropking)
+        )
+    )
+    (loss-condition (White Black) (checkmated King) )
+)

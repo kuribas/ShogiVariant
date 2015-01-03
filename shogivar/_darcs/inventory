@@ -1,0 +1,18 @@
+[Initial revision
+Kristof Bastiaensen <kristof@vleeuwen.org>**20070120214322] 
+[Added long names to piece structs.
+Kristof Bastiaensen <kristof@vleeuwen.org>**20070120235425] 
+[Added a finished method to ShogiPosition in the extension.
+Kristof Bastiaensen <kristof@vleeuwen.org>**20070121014018] 
+[Changed constant name CLASS_REGISTER.
+Kristof Bastiaensen <kristof@vleeuwen.org>**20070121135512] 
+[Added a Type and Piece class to ShogiPosition.
+Kristof Bastiaensen <kristof@vleeuwen.org>**20070122161106
+ Added a Type and Piece class to ShogiPosition to acces information
+ about the type.
+] 
+[Use the ShogiPosition::Type and ShogiPosition::Piece objects in the extension.
+Kristof Bastiaensen <kristof@vleeuwen.org>**20070122230601
+ Changed the interface to use the ShogiPosition::Type and
+ ShogiPosition::Piece objects in the extension instead of a int and a string.
+] 

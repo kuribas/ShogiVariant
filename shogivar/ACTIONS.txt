@@ -1,0 +1,12 @@
+User moves on the board:
+- board move event
+- board subclass validates move (e.g. SmallShogiBoard::user_move)
+- user_move calls ChessBoard::board_moves
+- board_moves calls do_move on the player object, and notifies players
+  and observers
+
+Player moves without the board (e.g. chess engine, on server)
+- player calls ChessBoard::player_moves
+- ChessBoard::player_moves notifies other player and observers
+
+ 

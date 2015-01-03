@@ -1,0 +1,96 @@
+#!/bin/bash
+
+SHOGIPIECEDIR=$HOME/shogi/pieces/makewood
+MAKERED=0
+PNMSHOGI=$SHOGIPIECEDIR/pnmshogi
+INVERT=0
+INVERTPROG=cat
+FORCEPIXMAP=0
+
+if [ "$1" = "-pixdir" ]; then
+  PIXMAPDIR=$2
+  FORCEPIXMAP=1
+  shift 2
+fi
+
+if [ $# -eq 0 ]; then
+  echo "Gebruik: $0 [-pixdir dir] pngbestand ..."
+  exit
+fi
+
+SIZE=`pngtopnm $1 | pnmfile | awk '{print $4, $6}'`
+
+
+mkdir -p resolved || (echo "Kon directory resolved niet aanmaken."; exit)
+mkdir -p wood || (echo "Kon directory wood niet aanmaken."; exit)
+
+for i in $*;
+do
+  INPUT=$i;
+  OUTPUT=`basename $i .png`_wood.xpm
+
+  echo -n "analyseren $INPUT... "
+  if [ "${INPUT: -6}" = "_W.png" ]; then
+    INVERT=1
+    INVERTPROG="pnmflip -r180"
+    MASKDIR=$SHOGIPIECEDIR/masks/white
+    echo -n "invert, "
+  else
+    INVERT=0
+    INVERTPROG=cat
+    MASKDIR=$SHOGIPIECEDIR/masks
+  fi
+  
+#analyseer bestand
+  if [ $FORCEPIXMAP -eq 0 ]; then
+  PIXMAPDIR=
+  for mask in $MASKDIR/*;
+  do
+    MASKBASE=`basename $mask`
+    [ $MASKBASE = "white" ] && continue  
+    
+    if pngtopnm $INPUT | $INVERTPROG | $PNMSHOGI -p | 
+	  $INVERTPROG | pnmpaste -xor $mask 0 0 |
+          ppmtomap 2>&1 > /dev/null | grep -q '1 color'; then
+      PIXMAPDIR=$SHOGIPIECEDIR/pixmaps/$MASKBASE
+      [ $INVERT -eq 1 ] && PIXMAPDIR=$PIXMAPDIR/white
+      echo -n "using: $MASKBASE, "
+    fi
+  done; fi
+
+  if [ -z $PIXMAPDIR ]; then
+    echo "==> unresolved"
+    continue
+  fi
+
+  if [ ! -d $PIXMAPDIR ] || [ ! -f $PIXMAPDIR/back.ppm ] ||
+     [ ! -f $PIXMAPDIR/alpha.pbm ] || [ ! -f $PIXMAPDIR/mask.pbm ]; then
+    echo
+    echo "pixmapdir $PIXMAPDIR bestaat niet of bevat niet"
+    echo "de juiste bestanden."
+    exit 1
+  fi
+
+  if pngtopnm $INPUT | ppmtomap 2>&1 > /dev/null | 
+        grep -q '4 colors'; then
+    MAKERED=1
+    echo -n "red "
+  else
+    MAKERED=0
+  fi    
+  
+  echo "==> $OUTPUT"
+  pngtopnm $INPUT | $INVERTPROG | $PNMSHOGI -c wbww | $INVERTPROG |
+    pnmpaste -xor $PIXMAPDIR/mask.pbm 0 0 > textmask.ppm
+    
+  if [ $MAKERED -eq 0 ]; then
+    pnmtile $SIZE $SHOGIPIECEDIR/pixmaps/woodtextback.ppm |
+      pnmcomp -invert -alpha=textmask.ppm $PIXMAPDIR/back.ppm | 
+      ppmtoxpm -alphamask=$PIXMAPDIR/alpha.pbm 2> /dev/null > wood/$OUTPUT
+  else
+    ppmmake '#ca0d0d' $SIZE |
+      pnmcomp -invert -alpha=textmask.ppm $PIXMAPDIR/back.ppm | 
+      ppmtoxpm -alphamask=$PIXMAPDIR/alpha.pbm 2> /dev/null > wood/$OUTPUT
+  fi
+  mv $INPUT resolved
+done

@@ -1,0 +1,93 @@
+#!/bin/bash
+
+SHOGIPIECEDIR=$HOME/Projects/shogi/pieces/makewood
+MAKERED=0
+PNMSHOGI=$SHOGIPIECEDIR/pnmshogi
+OUTLINE=$SHOGIPIECEDIR/outline
+OUTLSCAN=$SHOGIPIECEDIR/outlscan
+CREATEBACK=$SHOGIPIECEDIR/createback_scm.rb
+INVERT=0
+INVERTPROG=cat
+FORCEPIXMAP=0
+
+maskcache=()
+
+if [ $# -eq 0 ]; then
+  echo "Gebruik: $0 bestand [...] [-invert bestand [...]]"
+  exit
+fi
+
+mkdir -p resolved || (echo "Kon directory resolved niet aanmaken."; exit)
+mkdir -p wood || (echo "Kon directory wood niet aanmaken."; exit)
+mkdir -p cache || (echo "Kon directory cache niet aanmaken."; exit)
+
+for i in $*;
+do
+  INPUT=$i
+  OUTPUT=`basename $i .png`_wood.xpm
+
+  pngtopnm $i | pnmcrop > ppmpiece.ppm
+  SIZE=`pnmfile < ppmpiece.ppm | awk '{print $4, $6}'`
+
+  if [ $i = "-invert" ]; then
+    INVERT=1
+    INVERTPROG="pnmflip -r180"
+    continue
+  fi
+
+  echo -n "$INPUT "
+  if ppmtomap < ppmpiece.ppm 2>&1 > /dev/null | 
+        grep -q '4 colors'; then
+    MAKERED=1
+    echo -n "red "
+  else
+    MAKERED=0
+  fi
+
+  cat ppmpiece.ppm | $INVERTPROG | $PNMSHOGI -t | $INVERTPROG > textmask.ppm &&
+  POINTS=$(cat ppmpiece.ppm | $INVERTPROG | $OUTLSCAN)
+  $OUTLINE $SIZE $POINTS | pnminvert | $INVERTPROG > alpha.pgm
+
+  if [ $? -ne 0 ]; then
+    echo " ==> failed"
+    continue
+  fi
+    
+  MASKCKSUM=`cksum < alpha.pgm`
+  for(( i=0 ; i < ${#maskcache[*]} ; i++)); do
+    if [ "$MASKCKSUM" == "${maskcache[$i]}" ]; then
+      cp cache/$i/* .
+      break
+    fi
+  done
+      
+  if [ $i -eq ${#maskcache[*]} ]; then
+    $CREATEBACK alpha.pgm back.ppm &&
+    mkdir cache/$i &&
+    cp alpha.pgm back.ppm cache/$i/ &&
+    maskcache[$i]="$MASKCKSUM"
+  fi
+
+  pgmtopbm -threshold < alpha.pgm > alpha.pbm
+
+  if [ $MAKERED -eq 0 ]; then
+    pnmtile $SIZE $SHOGIPIECEDIR/woodtextback.ppm |
+      pnmcomp -invert -alpha=textmask.ppm back.ppm |
+      ppmquant -map $SHOGIPIECEDIR/colormap.ppm 2> /dev/null |
+      ppmtoxpm -alphamask=alpha.pgm 2> /dev/null > wood/$OUTPUT
+  else
+    ppmmake '#ca0d0d' $SIZE |
+      pnmcomp -invert -alpha=textmask.ppm back.ppm |
+      ppmquant -map $SHOGIPIECEDIR/colormap.ppm 2> /dev/null |
+      ppmtoxpm -alphamask=alpha.pgm 2> /dev/null > wood/$OUTPUT
+  fi
+
+  if [ $? -ne 0 ]; then
+    echo " ==> failed"
+    continue
+  fi
+
+  echo " ==> $OUTPUT"
+  mv $INPUT resolved
+done
+rm textmask.ppm back.ppm alpha.pgm ppmpiece.ppm
